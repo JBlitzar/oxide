@@ -9,6 +9,8 @@ pub(crate) struct Camera {
     y_fov: f64,
     position: Vec3,
     euler_angles: Vec3,
+    half_tan_fov_x: f64,
+    half_tan_fov_y: f64,
 }
 impl Camera {
     pub fn new(width_px: usize, height_px: usize, x_fov: f64, y_fov: f64, position: Vec3, euler_angles: Vec3) -> Self {
@@ -19,12 +21,14 @@ impl Camera {
             y_fov,
             position,
             euler_angles,
+            half_tan_fov_x: (x_fov / 2.0).tan(),
+            half_tan_fov_y: (y_fov / 2.0).tan()
         }
     }
 
     pub fn get_ray_direction(&self, x: usize, y: usize) -> Ray {
-        let x_cmp = (x as f64 / self.width_px as f64 - 0.5) * (self.x_fov/2.0).tan();
-        let y_cmp = (y as f64 / self.height_px as f64 - 0.5) * (self.y_fov/2.0).tan();
+        let x_cmp = (x as f64 / self.width_px as f64 - 0.5) * self.half_tan_fov_x;
+        let y_cmp = (y as f64 / self.height_px as f64 - 0.5) * self.half_tan_fov_y;
         Ray::new(self.position, Vec3::new(x_cmp, y_cmp, -1.0).normalize().rotate(&self.euler_angles))
     }
 
