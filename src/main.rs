@@ -19,7 +19,7 @@ fn main() {
 
 
     let mut world = World::new(
-        Camera::new(400, 300, 90.0_f64.to_radians(), 60.0_f64.to_radians(), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0)),
+        Camera::new(400, 300, 90.0_f64.to_radians(), 70.0_f64.to_radians(), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0)),
         HittableList { objs: vec![Box::new(ball), Box::new(floor)] }
     );
     world.render();
