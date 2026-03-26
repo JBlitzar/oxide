@@ -1,15 +1,19 @@
 mod vec3;
+mod camera;
 mod world;
+mod material;
+mod geometry;
+
 
 use crate::vec3::Vec3;
 use crate::world::World;
-use crate::world::Camera;
-use crate::world::Lambertian;
-use crate::world::Metal;
-use crate::world::Sphere;
-use crate::world::Dielectric;
-use crate::world::HittableList;
-use crate::world::Mesh;
+use crate::camera::Camera;
+use crate::material::Lambertian;
+use crate::material::Metal;
+use crate::geometry::sphere::Sphere;
+use crate::material::Dielectric;
+use geometry::HittableList;
+use crate::geometry::mesh::Mesh;
 
 fn main() {
     let red = Lambertian { albedo: Vec3::new(1.0, 0.0, 0.0) };
