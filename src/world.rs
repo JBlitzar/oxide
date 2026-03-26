@@ -1,14 +1,10 @@
+use crate::camera::Camera;
 use crate::geometry::HittableList;
-use crate::vec3::Vec3;
+use crate::material::Material;
 use crate::vec3::Ray;
+use crate::vec3::Vec3;
 use fastrand;
 use stl_io;
-use crate::camera::Camera;
-use crate::material::Material;
-
-
-
-
 
 pub struct World {
     // one world has one camera
@@ -17,17 +13,21 @@ pub struct World {
     objects: HittableList,
     depth: usize,
     samples: usize,
-
 }
 
 impl World {
     pub fn new(camera: Camera, objects: HittableList) -> Self {
         let img_buffer = vec![0; camera.width_px * camera.height_px * 3];
-        World { camera, img_buffer, objects, depth: 5, samples: 20 }
+        World {
+            camera,
+            img_buffer,
+            objects,
+            depth: 5,
+            samples: 20,
+        }
     }
 
     pub fn render(&mut self) {
-
         for y in 0..self.camera.height_px {
             for x in 0..self.camera.width_px {
                 let pixel = self.cast_rays_and_average(x, y, self.samples);
@@ -65,7 +65,8 @@ impl World {
             } else {
                 let unit_dir = current_ray.direction.normalize();
                 let t = 0.5 * (unit_dir.y + 1.0);
-                let sky = Vec3::new(1.0, 1.0, 1.0).scalar_mul(1.0 - t)
+                let sky = Vec3::new(1.0, 1.0, 1.0)
+                    .scalar_mul(1.0 - t)
                     .add(&Vec3::new(0.5, 0.7, 1.0).scalar_mul(t));
                 return current_color.mul(&sky);
             }

@@ -1,5 +1,8 @@
-use crate::{geometry::Hittable, material::{HitRecord, Material}, vec3::{Ray, Vec3}};
-
+use crate::{
+    geometry::Hittable,
+    material::{HitRecord, Material},
+    vec3::{Ray, Vec3},
+};
 
 pub(crate) struct Sphere {
     pub(crate) center: Vec3,
@@ -8,7 +11,6 @@ pub(crate) struct Sphere {
 }
 
 impl Hittable for Sphere {
-
     fn hit(&self, ray: &Ray) -> Option<HitRecord> {
         // https://raytracing.github.io/books/RayTracingInOneWeekend.html#surfacenormalsandmultipleobjects/simplifyingtheray-sphereintersectioncode
         let oc = ray.origin.sub(&self.center);
@@ -26,8 +28,12 @@ impl Hittable for Sphere {
             }
             let point = ray.origin.add(&ray.direction.scalar_mul(t));
             let normal = (point.sub(&self.center)).normalize();
-            Some(HitRecord { point, normal, material: self.material.as_ref(), t })
+            Some(HitRecord {
+                point,
+                normal,
+                material: self.material.as_ref(),
+                t,
+            })
         }
     }
-
 }

@@ -1,7 +1,10 @@
-use crate::{material::{HitRecord, Material}, vec3::{Ray, Vec3}};
-pub mod sphere;
-pub mod plane;
+use crate::{
+    material::{HitRecord, Material},
+    vec3::{Ray, Vec3},
+};
 pub mod mesh;
+pub mod plane;
+pub mod sphere;
 
 pub(crate) trait Hittable {
     fn hit(&self, ray: &Ray) -> Option<HitRecord>;
@@ -42,12 +45,8 @@ pub(crate) trait Hittable {
 //         if n <= 4 {
 //         }
 
-
-        
 //     }
 // }
-
-
 
 pub(crate) struct HittableList {
     pub(crate) objs: Vec<Box<dyn Hittable>>,

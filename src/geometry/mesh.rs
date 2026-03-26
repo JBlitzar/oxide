@@ -1,5 +1,8 @@
-use crate::{geometry::Hittable, material::{HitRecord, Material}, vec3::{Ray, Vec3}};
-
+use crate::{
+    geometry::Hittable,
+    material::{HitRecord, Material},
+    vec3::{Ray, Vec3},
+};
 
 pub struct Triangle {
     pub(crate) v0: Vec3,
@@ -17,10 +20,17 @@ impl Triangle {
         let e12 = v2.sub(&v1);
         let e20 = v0.sub(&v2);
         let normal = e01.cross(&e02).normalize();
-        Triangle { v0, v1, v2, normal, e01, e12, e20 }
+        Triangle {
+            v0,
+            v1,
+            v2,
+            normal,
+            e01,
+            e12,
+            e20,
+        }
     }
 
-    
     fn hit<'a>(&self, ray: &Ray, material: &'a dyn Material) -> Option<HitRecord<'a>> {
         // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution.html
         let NdotRayDirection = self.normal.dot(&ray.direction);
@@ -51,8 +61,13 @@ impl Triangle {
         if self.normal.dot(&Ne) < 0.0 {
             return None;
         }
-        
-        Some(HitRecord { point: P, normal: self.normal, material, t })
+
+        Some(HitRecord {
+            point: P,
+            normal: self.normal,
+            material,
+            t,
+        })
     }
 }
 
@@ -62,18 +77,40 @@ pub struct Mesh {
 }
 impl Mesh {
     pub fn new(triangles: Vec<Triangle>, material: Box<dyn Material>) -> Self {
-        Mesh { triangles, material }
+        Mesh {
+            triangles,
+            material,
+        }
     }
     pub fn from_stl(path: &str, material: Box<dyn Material>) -> Self {
         let mut file = std::fs::File::open(path).expect("failed to open STL file");
         let stl = stl_io::read_stl(&mut file).expect("failed to read STL file");
-        let triangles = stl.faces.into_iter().map(|face| {
-            let v0 = Vec3::new(stl.vertices[face.vertices[0] as usize][0] as f64, stl.vertices[face.vertices[0] as usize][1] as f64, stl.vertices[face.vertices[0] as usize][2] as f64);
-            let v1 = Vec3::new(stl.vertices[face.vertices[1] as usize][0] as f64, stl.vertices[face.vertices[1] as usize][1] as f64, stl.vertices[face.vertices[1] as usize][2] as f64);
-            let v2 = Vec3::new(stl.vertices[face.vertices[2] as usize][0] as f64, stl.vertices[face.vertices[2] as usize][1] as f64, stl.vertices[face.vertices[2] as usize][2] as f64);
-            Triangle::new(v0, v1, v2)
-        }).collect();
-        Mesh { triangles, material }
+        let triangles = stl
+            .faces
+            .into_iter()
+            .map(|face| {
+                let v0 = Vec3::new(
+                    stl.vertices[face.vertices[0] as usize][0] as f64,
+                    stl.vertices[face.vertices[0] as usize][1] as f64,
+                    stl.vertices[face.vertices[0] as usize][2] as f64,
+                );
+                let v1 = Vec3::new(
+                    stl.vertices[face.vertices[1] as usize][0] as f64,
+                    stl.vertices[face.vertices[1] as usize][1] as f64,
+                    stl.vertices[face.vertices[1] as usize][2] as f64,
+                );
+                let v2 = Vec3::new(
+                    stl.vertices[face.vertices[2] as usize][0] as f64,
+                    stl.vertices[face.vertices[2] as usize][1] as f64,
+                    stl.vertices[face.vertices[2] as usize][2] as f64,
+                );
+                Triangle::new(v0, v1, v2)
+            })
+            .collect();
+        Mesh {
+            triangles,
+            material,
+        }
     }
     pub fn build_cube(center: Vec3, size: f64, material: Box<dyn Material>) -> Self {
         let half = size / 2.0;
@@ -101,11 +138,13 @@ impl Mesh {
             Triangle::new(v4, v1, v0),
         ];
 
-        Mesh { triangles, material }
+        Mesh {
+            triangles,
+            material,
+        }
     }
 }
 impl Hittable for Mesh {
-
     fn hit(&self, ray: &Ray) -> Option<HitRecord> {
         let mut closest_hit: Option<HitRecord> = None;
         for tri in &self.triangles {
@@ -116,6 +155,5 @@ impl Hittable for Mesh {
             }
         }
         closest_hit
-
     }
 }
