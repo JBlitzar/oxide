@@ -47,8 +47,8 @@ impl Camera {
     }
 
     pub fn get_ray_direction(&self, x: usize, y: usize) -> Ray {
-        let x_cmp = (x as f64 / self.width_px as f64 - 0.5) * self.half_tan_fov_x;
-        let y_cmp = (0.5 - y as f64 / self.height_px as f64) * self.half_tan_fov_y;
+        let x_cmp = ((x as f64 + fastrand::f64()) / self.width_px as f64 - 0.5) * self.half_tan_fov_x ;
+        let y_cmp = (0.5 - (y as f64  + fastrand::f64())/ self.height_px as f64) * self.half_tan_fov_y;
         Ray::new(self.position, Vec3::new(x_cmp, y_cmp, -1.0).normalize().rotate(&self.euler_angles))
     }
 
@@ -192,6 +192,54 @@ impl Hittable for Sphere {
 
 }
 
+pub struct Triangle {
+    pub(crate) v0: Vec3,
+    pub(crate) v1: Vec3,
+    pub(crate) v2: Vec3,
+    pub(crate) material: Box<dyn Material>,
+}
+impl Hittable for Triangle {
+    fn hit(&self, ray: &Ray) -> Option<HitRecord> {
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution.html
+        let v0v1 = self.v1.sub(&self.v0);
+        let v0v2 = self.v2.sub(&self.v0);
+        let N = v0v1.cross(&v0v2);
+        let NdotRayDirection = N.dot(&ray.direction);
+        if NdotRayDirection.abs() < 1e-6 {
+            return None;
+        }
+        let d = N.dot(&self.v0);
+        let t = (N.dot(&ray.origin) + d) / NdotRayDirection;
+        if t < 0.001 {
+            return None;
+        }
+        let P = ray.origin.add(&ray.direction.scalar_mul(t));
+        let mut Ne: Vec3;
+        let v0p = P.sub(&self.v0);
+        Ne = v0v1.cross(&v0p);
+        if N.dot(&Ne) < 0.0 {
+            return None;
+        }
+
+        let v2v1 = self.v2.sub(&self.v1);
+        let v1p = P.sub(&self.v1);
+        Ne = v2v1.cross(&v1p);
+        if N.dot(&Ne) < 0.0 {
+            return None;
+        }
+
+        let v2v0 = self.v0.sub(&self.v2);
+        let v2p = P.sub(&self.v2);
+        Ne = v2v0.cross(&v2p);
+        if N.dot(&Ne) < 0.0 {
+            return None;
+        }
+        
+        Some(HitRecord { point: P, normal: N.normalize(), material: self.material.as_ref(), t })
+    }
+}
+
+
 pub struct Plane {
     pub(crate) point: Vec3,
     pub(crate) normal: Vec3,
@@ -245,22 +293,17 @@ pub struct World {
     objects: HittableList,
     depth: usize,
     samples: usize,
-    raysbuf: Vec<Ray>,
+
 }
 
 impl World {
     pub fn new(camera: Camera, objects: HittableList) -> Self {
         let img_buffer = vec![0; camera.width_px * camera.height_px * 3];
-        World { camera, img_buffer, objects, depth: 5, samples: 100, raysbuf: Vec::new() }
+        World { camera, img_buffer, objects, depth: 5, samples: 20 }
     }
 
     pub fn render(&mut self) {
-        self.raysbuf = Vec::with_capacity(self.camera.width_px * self.camera.height_px);
-        for y in 0..self.camera.height_px {
-            for x in 0..self.camera.width_px {
-                self.raysbuf.push(self.camera.get_ray_direction(x, y));
-            }
-        }
+
         for y in 0..self.camera.height_px {
             for x in 0..self.camera.width_px {
                 let pixel = self.cast_rays_and_average(x, y, self.samples);
@@ -282,13 +325,16 @@ impl World {
     }
 
     pub fn cast_ray(&self, x: usize, y: usize) -> Vec3 {
-        let mut current_ray = self.raysbuf[y * self.camera.width_px + x].clone();
+        let mut current_ray = self.camera.get_ray_direction(x, y);
         let mut current_color = Vec3::new(1.0, 1.0, 1.0);
         for _ in 0..self.depth {
             if let Some(hit) = self.objects.hit(&current_ray) {
                 if let Some((scattered, attenuation)) = hit.material.scatter(&current_ray, &hit) {
                     current_ray = scattered;
                     current_color = current_color.mul(&attenuation);
+                    if current_color.max_component() < 0.01 {
+                        return Vec3::ZERO;
+                    }
                 } else {
                     return Vec3::ZERO;
                 }
