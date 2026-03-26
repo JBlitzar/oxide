@@ -198,15 +198,18 @@ pub struct Triangle {
     pub(crate) v1: Vec3,
     pub(crate) v2: Vec3,
     pub normal: Vec3,
-    pub e1: Vec3,
-    pub e2: Vec3,
+    pub e01: Vec3,
+    pub e12: Vec3,
+    pub e20: Vec3,
 }
 impl Triangle {
     pub fn new(v0: Vec3, v1: Vec3, v2: Vec3) -> Self {
-        let e1 = v1.sub(&v0);
-        let e2 = v2.sub(&v0);
-        let normal = e1.cross(&e2).normalize();
-        Triangle { v0, v1, v2, normal, e1, e2 }
+        let e01 = v1.sub(&v0);
+        let e02 = v2.sub(&v0);
+        let e12 = v2.sub(&v1);
+        let e20 = v0.sub(&v2);
+        let normal = e01.cross(&e02).normalize();
+        Triangle { v0, v1, v2, normal, e01, e12, e20 }
     }
 
     
@@ -217,28 +220,26 @@ impl Triangle {
             return None;
         }
         let d = self.normal.dot(&self.v0);
-        let t = (self.normal.dot(&ray.origin) + d) / NdotRayDirection;
+        let t = (d - self.normal.dot(&ray.origin)) / NdotRayDirection;
         if t < 0.001 {
             return None;
         }
         let P = ray.origin.add(&ray.direction.scalar_mul(t));
         let mut Ne: Vec3;
         let v0p = P.sub(&self.v0);
-        Ne = self.e1.cross(&v0p);
+        Ne = self.e01.cross(&v0p);
         if self.normal.dot(&Ne) < 0.0 {
             return None;
         }
 
-        let v2v1 = self.v2.sub(&self.v1);
         let v1p = P.sub(&self.v1);
-        Ne = self.e2.cross(&v1p);
+        Ne = self.e12.cross(&v1p);
         if self.normal.dot(&Ne) < 0.0 {
             return None;
         }
 
-        let v2v0 = self.v0.sub(&self.v2);
         let v2p = P.sub(&self.v2);
-        Ne = self.e1.cross(&v2p);
+        Ne = self.e20.cross(&v2p);
         if self.normal.dot(&Ne) < 0.0 {
             return None;
         }
