@@ -1,8 +1,13 @@
+use std::sync::Arc;
+
 use criterion::{Criterion, criterion_group, criterion_main};
+use oxide::bvh::BVHNode;
 use oxide::camera::Camera;
-use oxide::geometry::HittableList;
 use oxide::vec3::Vec3;
 use oxide::world::World;
+use oxide::geometry::Hittable;
+use oxide::geometry::mesh::Mesh;
+use oxide::material::Lambertian;
 
 fn bench_render(c: &mut Criterion) {
     c.bench_function("render balls", |b| {
@@ -22,9 +27,16 @@ fn bench_render(c: &mut Criterion) {
     });
 }
 
+
 fn bench_render_cube(c: &mut Criterion) {
     c.bench_function("render cube", |b| {
         b.iter(|| {
+
+            let mut objects_vec: Vec<Arc<dyn Hittable>> = vec![
+                Arc::new(Mesh::build_cube(Vec3::new(0.0, 0.0, -5.0), 1.0, Box::new(Lambertian {
+                    albedo: Vec3::new(0.5, 0.5, 0.5),
+                }))),
+            ];
             let mut world = World::new(
                 Camera::new(
                     100,
@@ -33,16 +45,7 @@ fn bench_render_cube(c: &mut Criterion) {
                     Vec3::new(0.0, 2.0, 0.0),
                     Vec3::new(-0.2, 0.0, 0.0),
                 ),
-                HittableList {
-                    objs: vec![Box::new(oxide::geometry::mesh::Mesh::build_cube(
-                        Vec3::new(0.0, 0.0, -5.0),
-                        1.0,
-                        Box::new(oxide::material::Lambertian {
-                            albedo: Vec3::new(0.8, 0.3, 0.3),
-                        }),
-                    ))],
-                    bounding_box: None
-                },
+                BVHNode::of_objects_and_endpoints(&mut objects_vec),
             );
             world.render();
         })
@@ -51,12 +54,12 @@ fn bench_render_cube(c: &mut Criterion) {
 
 criterion_group! {
     name = benches;
-    config = Criterion::default().sample_size(10);
+    config = Criterion::default().sample_size(100);
     targets = bench_render
 }
 criterion_group! {
     name = cube_bench;
-    config = Criterion::default().sample_size(10);
+    config = Criterion::default().sample_size(100);
     targets = bench_render_cube
 }
 criterion_main!(benches, cube_bench);

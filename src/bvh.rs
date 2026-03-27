@@ -14,6 +14,20 @@ impl AABB {
         Self { min, max }
     }
 
+    pub fn widest_axis(&self) -> usize {
+        let x_extent = self.max.x - self.min.x;
+        let y_extent = self.max.y - self.min.y;
+        let z_extent = self.max.z - self.min.z;
+
+        if x_extent > y_extent && x_extent > z_extent {
+            0
+        } else if y_extent > z_extent {
+            1
+        } else {
+            2
+        }
+    }
+
     pub fn of_boxes(box0: &AABB, box1: &AABB) -> AABB {
         let small = Vec3::new(
             box0.min.x.min(box1.min.x),
@@ -45,7 +59,7 @@ impl AABB {
 }
 
 
-// TODO: BVHNode implementation (raytracing.github.io/books/RayTracingTheNextWeek.html#boundingvolumehierarchies)
+// https://raytracing.github.io/books/RayTracingTheNextWeek.html#boundingvolumehierarchies
 
 pub struct BVHNode {
     left: Arc<dyn Hittable>,
@@ -54,6 +68,10 @@ pub struct BVHNode {
 }
 impl Hittable for BVHNode {
     fn hit(&'_ self, ray: &Ray) -> Option<HitRecord<'_>> {
+        if !self.bbox.hit(ray) {
+            return None;
+        }
+
         let left_hit = self.left.hit(ray);
         let right_hit = self.right.hit(ray);
 
@@ -99,6 +117,19 @@ impl BVHNode {
     }
 
     pub fn of_objects_and_endpoints(objects: &mut [Arc<dyn Hittable>]) -> Self {
+
+        // makes it 15% slower, so even though it's supposed to be optimized, it's not for me? empirical data will always win. 
+
+        // let mut _box = AABB::new(Vec3::ZERO, Vec3::ZERO);
+        // for o in objects.iter() {
+        //     let obox = o.bounding_box();
+        //     if obox.min == Vec3::ZERO && obox.max == Vec3::ZERO {
+        //         panic!("Object has no bounding box");
+        //     }
+        //     _box = AABB::of_boxes(&_box, &obox);
+        // }
+
+        // let axis = _box.widest_axis();
         let axis = fastrand::usize(0..3);
         let comparator =
             |a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>| Self::box_compare(a, b, axis);
@@ -124,7 +155,7 @@ impl BVHNode {
         Self { left, right, bbox }
     }
 
-    pub fn hit(&self, ray: &Ray) -> Option<HitRecord> {
+    pub fn hit(&self, ray: &Ray) -> Option<HitRecord<'_>> {
         if !self.bbox.hit(ray) {
             return None;
         }
@@ -145,13 +176,6 @@ impl BVHNode {
         box_a.min[axis].partial_cmp(&box_b.min[axis]).unwrap()
     }
 
-    pub fn add(&mut self, obj: Box<dyn Hittable>) {
-       let obj_arc = Arc::new(obj);
-        self.bbox = AABB::of_boxes(&self.bbox, &obj_arc.bounding_box());
-
-        unimplemented!()
-        
-
-    }
+    
 
 }

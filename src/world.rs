@@ -1,6 +1,10 @@
+use std::hash::Hash;
 use std::mem;
+use std::sync::Arc;
 
+use crate::bvh::BVHNode;
 use crate::camera::Camera;
+use crate::geometry::Hittable;
 use crate::geometry::HittableList;
 use crate::material::Dielectric;
 use crate::material::Lambertian;
@@ -17,13 +21,13 @@ pub struct World {
     // one world has one camera
     camera: Camera,
     img_buffer: Vec<u8>,
-    objects: HittableList,
+    objects: BVHNode,
     termination_prob: f64,
     samples: usize,
 }
 
 impl World {
-    pub fn new(camera: Camera, objects: HittableList) -> Self {
+    pub fn new(camera: Camera, objects: BVHNode) -> Self {
         let img_buffer = vec![0; camera.width_px * camera.height_px * 3];
         World {
             camera,
@@ -34,7 +38,7 @@ impl World {
         }
     }
     pub fn new_random_spheres(camera: Camera, num_spheres: usize) -> Self {
-        let mut objects = HittableList::new();
+        let mut objects_vec: Vec<Arc<dyn Hittable>> = Vec::new();
         for _ in 0..num_spheres {
             let radius = fastrand::f64() * 0.5 + 0.1;
             let center = Vec3::new(
@@ -65,7 +69,7 @@ impl World {
                 }
                 _ => unreachable!(),
             }
-            objects.add(Box::new(crate::geometry::sphere::Sphere {
+            objects_vec.push(Arc::new(crate::geometry::sphere::Sphere {
                 center: center,
                 radius: radius,
                 material: mat,
@@ -75,11 +79,12 @@ impl World {
         let ground_material = Box::new(Lambertian {
             albedo: Vec3::new(0.5, 0.5, 0.5),
         });
-        objects.add(Box::new(crate::geometry::sphere::Sphere {
+        objects_vec.push(Arc::new(crate::geometry::sphere::Sphere {
             center: Vec3::new(0.0, -1001.0, -5.0),
             radius: 1000.0,
             material: ground_material,
         }));
+        let objects = BVHNode::of_objects_and_endpoints(&mut objects_vec);
 
         return World::new(camera, objects);
     }

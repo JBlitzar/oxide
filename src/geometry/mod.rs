@@ -39,6 +39,8 @@ impl Hittable for HittableList {
         self.bounding_box.clone().unwrap_or_else(|| AABB::new(Vec3::ZERO, Vec3::ZERO))
     }
 }
+
+#[deny(deprecated)]
 impl HittableList {
     pub fn new() -> Self {
         HittableList { objs: Vec::new(), bounding_box: None }

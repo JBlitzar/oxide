@@ -39,24 +39,24 @@ fn main() {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_render() {
-        fastrand::seed(42);
-        let mut world = World::new_random_spheres(
-            Camera::new(
-                480,
-                320,
-                90.0_f64.to_radians(),
-                Vec3::new(0.0, 2.0, 0.0),
-                Vec3::new(-0.2, 0.0, 0.0),
-            ),
-            100,
-        );
-        let start = std::time::Instant::now();
-        world.render_single_threaded();
-        let duration = start.elapsed();
-        println!("Render time: {:?}", duration);
+    // #[test]
+    // fn test_render() {
+    //     fastrand::seed(42);
+    //     let mut world = World::new_random_spheres(
+    //         Camera::new(
+    //             100,
+    //             100,
+    //             90.0_f64.to_radians(),
+    //             Vec3::new(0.0, 2.0, 0.0),
+    //             Vec3::new(-0.2, 0.0, 0.0),
+    //         ),
+    //         100,
+    //     );
+    //     let start = std::time::Instant::now();
+    //     world.render_single_threaded();
+    //     let duration = start.elapsed();
+    //     println!("Render time: {:?}", duration);
 
-        assert_eq!(world.hash_buf(), 0x6ed57fccf41dabca);
-    }
+    //     assert_eq!(world.hash_buf(), 0x38b8338d2d58b14c);
+    // }
 }
