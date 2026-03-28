@@ -1,23 +1,31 @@
+mod bvh;
 mod camera;
 mod geometry;
 mod material;
 mod vec3;
 mod world;
-mod bvh;
 
+use std::sync::Arc;
+
+use crate::bvh::BVHNode;
 use crate::camera::Camera;
 use crate::geometry::mesh::Mesh;
-use crate::geometry::sphere::Sphere;
-use crate::material::Dielectric;
 use crate::material::Lambertian;
-use crate::material::Metal;
 use crate::vec3::Vec3;
 use crate::world::World;
-use geometry::HittableList;
 
 fn main() {
     fastrand::seed(42);
-    let mut world = World::new_random_spheres(
+    let mut objects: Vec<Arc<dyn geometry::Hittable>> = vec![Arc::new(Mesh::build_cube(
+        Vec3::new(0.0, 0.0, -5.0),
+        2.0,
+        Box::new(Lambertian {
+            albedo: Vec3::new(0.5, 0.5, 0.5),
+        }),
+    ))];
+    let objects = BVHNode::of_objects_and_endpoints(&mut objects);
+
+    let mut world = World::new(
         Camera::new(
             480,
             320,
@@ -25,7 +33,7 @@ fn main() {
             Vec3::new(0.0, 2.0, 0.0),
             Vec3::new(-0.2, 0.0, 0.0),
         ),
-        100,
+        objects,
     );
     let start = std::time::Instant::now();
     world.render();

@@ -56,9 +56,14 @@ impl Triangle {
         if t < 1e-8 {
             return None;
         }
+        let normal = if ray.direction.dot(&self.normal) > 0.0 {
+            self.normal.scalar_mul(-1.0)
+        } else {
+            self.normal
+        };
         Some(HitRecord {
             point: ray.origin.add(&ray.direction.scalar_mul(t)),
-            normal: self.normal,
+            normal,
             material,
             t,
         })
