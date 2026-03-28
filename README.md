@@ -8,17 +8,39 @@
 
 A CPU path tracer written in blazingly fast memory safe rust. Compiles to WASM.
 
-It implements many optimization techniques, including multithreading with Rayon, BVH and Russian Roulette termination.
+Features include:
+
+- Path tracing with global illumination
+- BVH acceleration (O(log n) intersection)
+- Glass, mirror, diffuse materials
+- Mesh loading (STL)
+- Multithreaded via Rayon
+- Progressive WASM renderer
+- Russian roulette termination
 
 Even on web, even on the CPU, it's quite responsive:
 
 ![](docs/demo.gif)
+
+My initial image that came out was just a flat red circle.
+
+![](docs/first_render.png)
+
+Then I realized that I had symmetric shading everywhere...
 
 ## Running natively
 
 You'll need to clone and `cargo run --release`. That's pretty much it. Edit main.rs for a different scene, if you'd like.
 
 You can get some truly amazing speeds natively! Especially with SIMD.
+
+I've made an effort to make the tooling very nice! You can benchmark with `cargo bench`, build WASM with `bash build.sh`, and serve WASM with `bash serve.sh`.
+
+No tests right now because it's nondeterministic timing with the threads even if the RNG is set-seed, and I know the math works because it, well, renders images that look right.
+
+## Devlog
+
+[Full devlog ->](DEVLOG.md)
 
 ## Optimization
 
@@ -67,7 +89,7 @@ Here’s a cool high-resolution render. And now I finally have real CI tooling, 
 
 ---
 
-Yes, one feature gets it’s own devlog. The Raytracing in One Weekend book calls it “by far the most difficult and involved part.”
+Yes, one feature gets its own devlog. The Raytracing in One Weekend book calls it “by far the most difficult and involved part.”
 
 It’s great to be able to collide with objects in O(log n) time instead of O(n). For the 100 spheres benchmark, this has sped it up 10x again, down to 10.285 ms! (±0.7 ms)
 
