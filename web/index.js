@@ -3,6 +3,7 @@ import init, { WasmRenderer, initThreadPool } from "./pkg/oxide.js";
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const info = document.getElementById("info");
+ctx.imageSmoothingEnabled = false;
 
 let azimuth = 0;
 let elevation = 0.1;
@@ -46,7 +47,7 @@ function displayFrame(rgba, w, h, label) {
     const offscreen = new OffscreenCanvas(w, h);
     const octx = offscreen.getContext("2d");
     octx.putImageData(imgData, 0, 0);
-    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
   } else {
     ctx.putImageData(imgData, 0, 0);
