@@ -51,7 +51,9 @@ function displayFrame(rgba, w, h, label) {
   } else {
     ctx.putImageData(imgData, 0, 0);
   }
-  info.textContent = label;
+  info.innerHTML =
+    "<a href='https://github.com/oxide/oxide' target='_blank'>[Github]</a> " +
+    label;
 }
 
 function renderPreview() {
