@@ -1,5 +1,5 @@
-pub mod camera;
 pub mod bvh;
+pub mod camera;
 pub mod geometry;
 pub mod material;
 pub mod vec3;

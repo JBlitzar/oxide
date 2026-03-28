@@ -1,6 +1,5 @@
 use std::ops::Index;
 
-
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Vec3 {
     pub(crate) x: f64,

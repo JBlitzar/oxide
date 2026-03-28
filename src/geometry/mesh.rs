@@ -13,6 +13,7 @@ pub struct Triangle {
     pub e01: Vec3,
     pub e02: Vec3,
 }
+
 impl Triangle {
     pub fn new(v0: Vec3, v1: Vec3, v2: Vec3) -> Self {
         let e01 = v1.sub(&v0);

@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use crate::{geometry::{Hittable, HittableList}, material::HitRecord, vec3::{Ray, Vec3}};
-
+use crate::{
+    geometry::{Hittable, HittableList},
+    material::HitRecord,
+    vec3::{Ray, Vec3},
+};
 
 // erm actually they're called axis-aligned bounding rectangular parallelepipeds
 #[derive(Clone)]
@@ -39,7 +42,10 @@ impl AABB {
             box0.max.y.max(box1.max.y),
             box0.max.z.max(box1.max.z),
         );
-        AABB { min: small, max: big }
+        AABB {
+            min: small,
+            max: big,
+        }
     }
 
     //TODO check for correctness?
@@ -49,7 +55,7 @@ impl AABB {
             let t1 = (self.max[axis] - ray.origin[axis]) / ray.direction[axis];
             let t_min = t0.min(t1);
             let t_max = t0.max(t1);
-            
+
             if t_max < 0.0 || t_min > t_max {
                 return false;
             }
@@ -57,7 +63,6 @@ impl AABB {
         true
     }
 }
-
 
 // https://raytracing.github.io/books/RayTracingTheNextWeek.html#boundingvolumehierarchies
 
@@ -77,7 +82,11 @@ impl Hittable for BVHNode {
 
         match (left_hit, right_hit) {
             (Some(l), Some(r)) => {
-                if l.t <= r.t { Some(l) } else { Some(r) }
+                if l.t <= r.t {
+                    Some(l)
+                } else {
+                    Some(r)
+                }
             }
             (Some(l), None) => Some(l),
             (None, Some(r)) => Some(r),
@@ -117,8 +126,7 @@ impl BVHNode {
     }
 
     pub fn of_objects_and_endpoints(objects: &mut [Arc<dyn Hittable>]) -> Self {
-
-        // makes it 15% slower, so even though it's supposed to be optimized, it's not for me? empirical data will always win. 
+        // makes it 15% slower, so even though it's supposed to be optimized, it's not for me? empirical data will always win.
 
         // let mut _box = AABB::new(Vec3::ZERO, Vec3::ZERO);
         // for o in objects.iter() {
@@ -147,7 +155,8 @@ impl BVHNode {
             let (left_slice, right_slice) = objects.split_at_mut(mid);
 
             let left_node: Arc<dyn Hittable> = Arc::new(Self::of_objects_and_endpoints(left_slice));
-            let right_node: Arc<dyn Hittable> = Arc::new(Self::of_objects_and_endpoints(right_slice));
+            let right_node: Arc<dyn Hittable> =
+                Arc::new(Self::of_objects_and_endpoints(right_slice));
             (left_node, right_node)
         };
 
@@ -163,19 +172,26 @@ impl BVHNode {
         let right_hit = self.right.hit(ray);
 
         match (left_hit, right_hit) {
-            (Some(lh), Some(rh)) => if lh.t < rh.t { Some(lh) } else { Some(rh) },
+            (Some(lh), Some(rh)) => {
+                if lh.t < rh.t {
+                    Some(lh)
+                } else {
+                    Some(rh)
+                }
+            }
             (Some(lh), None) => Some(lh),
             (None, Some(rh)) => Some(rh),
             (None, None) => None,
         }
     }
 
-    fn box_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>, axis: usize) -> std::cmp::Ordering {
+    fn box_compare(
+        a: &Arc<dyn Hittable>,
+        b: &Arc<dyn Hittable>,
+        axis: usize,
+    ) -> std::cmp::Ordering {
         let box_a = a.bounding_box();
         let box_b = b.bounding_box();
         box_a.min[axis].partial_cmp(&box_b.min[axis]).unwrap()
     }
-
-    
-
 }
