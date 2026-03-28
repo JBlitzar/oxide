@@ -10,8 +10,7 @@ RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals,+simd128 -C 
 wasm-bindgen --target web --out-dir web/pkg \
   target/wasm32-unknown-unknown/release/oxide.wasm
 
-# workerHelpers.js uses `import('../../..')` which resolves to web/pkg/ directory.
-# We need an index.js there so the browser can load the module.
+
 cat > web/pkg/index.js << 'EOF'
 export * from './oxide.js';
 export { default } from './oxide.js';

@@ -110,7 +110,7 @@ function onQualityFrame(e) {
   const { type, id, width, height, dt, rgba } = e.data;
   if (type === "ready") {
     qualityWorkerReady = true;
-    // Start the progressive chain with the current token
+
     sendQualityRender(0, progressiveToken);
     return;
   }
@@ -148,10 +148,7 @@ function spawnWorker() {
 function startProgressive() {
   const token = ++progressiveToken;
   pendingRenders.clear();
-  // Kill any in-progress render by terminating the worker
   spawnWorker();
-  // Worker will post "ready" once initialized, which triggers sendQualityRender(0, token)
-  // But token might be stale by then, so store it for the ready handler
 }
 
 function onCameraChange() {
