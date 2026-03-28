@@ -69,7 +69,7 @@ impl AABB {
 }
 
 // https://raytracing.github.io/books/RayTracingTheNextWeek.html#boundingvolumehierarchies
-
+#[derive(Clone)]
 pub struct BVHNode {
     left: Arc<dyn Hittable>,
     right: Arc<dyn Hittable>,

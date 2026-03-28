@@ -29,6 +29,7 @@ fn random_in_unit_sphere() -> Vec3 {
     p
 }
 
+
 pub trait Material: Send + Sync {
     fn scatter(&self, ray_in: &Ray, hit_record: &HitRecord) -> Option<(Ray, Vec3)>;
 }
@@ -81,7 +82,7 @@ fn refract(uv: &Vec3, n: &Vec3, etai_over_etat: f64) -> Vec3 {
     let r_out_parallel = n.scalar_mul(-((1.0 - r_out_perp.length_squared()).abs().sqrt()));
     r_out_perp.add(&r_out_parallel)
 }
-
+#[derive(Clone)]
 pub struct Dielectric {
     pub albedo: Vec3,
     pub refractive_index: f64,
@@ -128,7 +129,7 @@ impl Material for Dielectric {
         Some((scattered, attenuation))
     }
 }
-
+#[derive(Clone)]
 pub struct Checkerboard {
     pub scale: f64,
     pub color_a: Vec3,

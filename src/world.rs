@@ -22,13 +22,13 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(camera: Camera, objects: BVHNode, samples: Option<usize>) -> Self {
+    pub fn new(camera: Camera, objects: BVHNode, samples: Option<usize>, termination_prob: Option<f64>) -> Self {
         let img_buffer = vec![0; camera.width_px * camera.height_px * 3];
         World {
             camera,
             img_buffer,
             objects,
-            termination_prob: 0.01,
+            termination_prob: termination_prob.unwrap_or(0.01),
             samples: samples.unwrap_or(20),
         }
     }
@@ -81,7 +81,7 @@ impl World {
         }));
         let objects = BVHNode::of_objects_and_endpoints(&mut objects_vec);
 
-        return World::new(camera, objects, None);
+        return World::new(camera, objects, None, None);
     }
 
     pub fn render(&mut self) {
@@ -156,7 +156,27 @@ impl World {
         self.img_buffer[index + 1] = color[1];
         self.img_buffer[index + 2] = color[2];
     }
+    
 
+    pub fn hash_buf(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.img_buffer.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    pub fn take_buffer_rgba(&mut self) -> Vec<u8> {
+        let mut rgba = Vec::with_capacity(self.camera.width_px * self.camera.height_px * 4);
+        for chunk in self.img_buffer.chunks(3) {
+            rgba.push(chunk[0]);
+            rgba.push(chunk[1]);
+            rgba.push(chunk[2]);
+            rgba.push(255);
+        }
+        rgba
+    }
+
+    #[cfg(feature = "native")]
     pub fn save_image(&self, filename: &str) {
         let img = image::RgbImage::from_raw(
             self.camera.width_px as u32,
@@ -166,12 +186,5 @@ impl World {
         .expect("invalid image buffer size");
 
         img.save(filename).expect("failed to save PNG image");
-    }
-
-    pub fn hash_buf(&self) -> u64 {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.img_buffer.hash(&mut hasher);
-        hasher.finish()
     }
 }

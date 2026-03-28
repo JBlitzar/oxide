@@ -13,12 +13,12 @@ fn bench_render(c: &mut Criterion) {
     c.bench_function("render balls", |b| {
         b.iter(|| {
             let mut world = World::new_random_spheres(
-                Camera::new(
+                Camera::look_at(
                     480,
                     320,
                     90.0_f64.to_radians(),
                     Vec3::new(0.0, 2.0, 0.0),
-                    Vec3::new(-0.2, 0.0, 0.0),
+                    Vec3::new(0.0, 0.0, -5.0),
                 ),
                 100,
             );
@@ -38,15 +38,16 @@ fn bench_render_cube(c: &mut Criterion) {
                 }),
             ))];
             let mut world = World::new(
-                Camera::new(
+                Camera::look_at(
                     480,
                     320,
                     90.0_f64.to_radians(),
                     Vec3::new(0.0, 2.0, 0.0),
-                    Vec3::new(-0.2, 0.0, 0.0),
+                    Vec3::new(0.0, 0.0, -5.0),
                 ),
                 BVHNode::of_objects_and_endpoints(&mut objects_vec),
                 Some(20),
+                Some(0.1),
             );
             world.render();
         })

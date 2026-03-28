@@ -1,3 +1,5 @@
+use std::io::{Read, Seek};
+
 use crate::{
     bvh::AABB,
     geometry::Hittable,
@@ -5,6 +7,7 @@ use crate::{
     vec3::{Ray, Vec3},
 };
 
+#[derive(Clone)]
 pub struct Triangle {
     pub(crate) v0: Vec3,
     pub(crate) v1: Vec3,
@@ -103,12 +106,14 @@ pub struct MeshBVHNode {
     triangle_index: usize,
 }
 
+
 pub struct MeshBVH {
     nodes: Vec<MeshBVHNode>,
     triangles: Vec<Triangle>,
     material: Box<dyn Material>,
     root: usize,
 }
+
 
 impl MeshBVH {
     fn new(triangles: Vec<Triangle>, material: Box<dyn Material>) -> Self {
@@ -121,25 +126,14 @@ impl MeshBVH {
         bvh.root = bvh.build_bvh(0, bvh.triangles.len());
         bvh
     }
-    pub fn from_stl(
-        path: &str,
-        material: Box<dyn Material>,
-        max_size: Option<f64>,
-        offset: Option<Vec3>,
-        rotation: Option<Vec3>,
-    ) -> Self {
-        let offset = offset.unwrap_or(Vec3::ZERO);
-        let rotation = rotation.unwrap_or(Vec3::ZERO);
 
-        let mut file = std::fs::File::open(path).expect("failed to open STL file");
-        let stl = stl_io::read_stl(&mut file).expect("failed to read STL file");
-
+    fn parse_stl_read<R: Read + Seek>(reader: &mut R) -> (Vec<Vec3>, Vec<[usize; 3]>) {
+        let stl = stl_io::read_stl(reader).expect("Failed to read");
         let raw_positions: Vec<Vec3> = stl
             .vertices
             .iter()
             .map(|v| Vec3::new(v[0] as f64, v[1] as f64, v[2] as f64))
             .collect();
-
         let raw_faces: Vec<[usize; 3]> = stl
             .faces
             .iter()
@@ -151,6 +145,18 @@ impl MeshBVH {
                 ]
             })
             .collect();
+
+        (raw_positions, raw_faces)
+    }
+    fn triangles_from_stl_data(
+        raw_positions: Vec<Vec3>,
+        raw_faces: Vec<[usize; 3]>,
+        max_size: Option<f64>,
+        offset: Vec3,
+        rotation: Vec3,
+    ) -> Vec<Triangle> {
+        let offset = offset;
+        let rotation = rotation;
 
         let raw_verts: Vec<[Vec3; 3]> = raw_faces
             .iter()
@@ -227,8 +233,48 @@ impl MeshBVH {
         #[cfg(debug_assertions)]
         println!("Num triangles: {}", triangles.len());
 
-        MeshBVH::new(triangles, material)
+        triangles
     }
+
+    #[cfg(feature = "native")]
+    pub fn from_stl(
+        path: &str,
+        material: Box<dyn Material>,
+        max_size: Option<f64>,
+        offset: Option<Vec3>,
+        rotation: Option<Vec3>,
+    ) -> Self {
+        let mut file = std::fs::File::open(path).expect("failed to open STL file");
+        let (pos, faces) = Self::parse_stl_read(&mut file);
+        let tris = Self::triangles_from_stl_data(
+            pos,
+            faces,
+            max_size,
+            offset.unwrap_or(Vec3::ZERO),
+            rotation.unwrap_or(Vec3::ZERO),
+        );
+        MeshBVH::new(tris, material)
+    }
+
+    pub fn from_stl_bytes(
+        data: &[u8],
+        material: Box<dyn Material>,
+        max_size: Option<f64>,
+        offset: Option<Vec3>,
+        rotation: Option<Vec3>,
+    ) -> Self {
+        let mut cursor = std::io::Cursor::new(data);
+        let (pos, faces) = Self::parse_stl_read(&mut cursor);
+        let tris = Self::triangles_from_stl_data(
+            pos,
+            faces,
+            max_size,
+            offset.unwrap_or(Vec3::ZERO),
+            rotation.unwrap_or(Vec3::ZERO),
+        );
+        MeshBVH::new(tris, material)
+    }
+
     pub fn build_cube(center: Vec3, size: f64, material: Box<dyn Material>) -> Self {
         let half = size / 2.0;
         let v0 = center.add(&Vec3::new(-half, -half, -half));

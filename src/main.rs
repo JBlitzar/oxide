@@ -54,7 +54,7 @@ fn main() {
         Arc::new(geometry::sphere::Sphere {
             center: Vec3::new(2.0, 0.7, -7.0),
             radius: 0.7,
-            material:Box::new(Dielectric {
+            material: Box::new(Dielectric {
                 albedo: Vec3::new(1.0, 1.0, 1.0),
                 refractive_index: 1.5,
             }),
@@ -75,20 +75,20 @@ fn main() {
                 scale: 1.0,
             }),
         }),
-        
     ];
     let objects = BVHNode::of_objects_and_endpoints(&mut objects);
 
     let mut world = World::new(
-        Camera::new(
-            3840,
-            2160,
+        Camera::look_at(
+            1920,
+            1080,
             90.0_f64.to_radians(),
             Vec3::new(0.0, 2.0, 0.0),
-            Vec3::new(-0.2, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, -5.0),
         ),
         objects,
-        Some(1_000),
+        Some(100),
+        Some(0.01),
     );
     let start = std::time::Instant::now();
     world.render();
