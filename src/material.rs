@@ -29,8 +29,40 @@ fn random_in_unit_sphere() -> Vec3 {
     p
 }
 
+fn random_cosine_direction() -> Vec3 {
+    // Cosine-weighted hemisphere sampling around +Z in local space.
+    // See: https://raytracing.github.io/books/RayTracingTheRestOfYourLife.html#probabilitydensityfunctions/cosinesampling
+    let r1 = fastrand::f64();
+    let r2 = fastrand::f64();
+    let phi = 2.0 * std::f64::consts::PI * r1;
+    let x = phi.cos() * r2.sqrt();
+    let y = phi.sin() * r2.sqrt();
+    let z = (1.0 - r2).sqrt();
+    Vec3::new(x, y, z)
+}
+
+fn cosine_weighted_hemisphere(normal: &Vec3) -> Vec3 {
+    // Build an orthonormal basis (u,v,w) with w aligned to the surface normal.
+    let w = normal.normalize();
+    let a = if w.x.abs() > 0.9 {
+        Vec3::new(0.0, 1.0, 0.0)
+    } else {
+        Vec3::new(1.0, 0.0, 0.0)
+    };
+    let v = w.cross(&a).normalize();
+    let u = w.cross(&v);
+
+    let d = random_cosine_direction();
+    u.scalar_mul(d.x)
+        .add(&v.scalar_mul(d.y))
+        .add(&w.scalar_mul(d.z))
+}
+
 pub trait Material: Send + Sync {
     fn scatter(&self, ray_in: &Ray, hit_record: &HitRecord) -> Option<(Ray, Vec3)>;
+    fn emitted(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Vec3 {
+        Vec3::new(0.0, 0.0, 0.0)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -39,20 +71,9 @@ pub struct Lambertian {
 }
 impl Material for Lambertian {
     fn scatter(&self, _ray_in: &Ray, hit_record: &HitRecord) -> Option<(Ray, Vec3)> {
-        let mut random_in_unit_hemisphere = random_in_unit_sphere();
-        if random_in_unit_hemisphere.dot(&hit_record.normal) < 0.0 {
-            random_in_unit_hemisphere = random_in_unit_hemisphere.scalar_mul(-1.0);
-        }
+        let dir = cosine_weighted_hemisphere(&hit_record.normal);
 
-        let target = hit_record
-            .point
-            .add(&hit_record.normal)
-            .add(&random_in_unit_hemisphere);
-
-        Some((
-            Ray::new(hit_record.point, target.sub(&hit_record.point)),
-            self.albedo,
-        ))
+        Some((Ray::new(hit_record.point, dir), self.albedo))
     }
 }
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -145,10 +166,21 @@ impl Material for Checkerboard {
             self.color_b
         };
 
-        let mut dir = random_in_unit_sphere();
-        if dir.dot(&hit.normal) < 0.0 {
-            dir = dir.scalar_mul(-1.0);
-        }
+        let dir = cosine_weighted_hemisphere(&hit.normal);
         Some((Ray::new(hit.point, dir), color))
+    }
+}
+
+#[derive(Clone)]
+pub struct DiffuseLight {
+    pub albedo: Vec3,
+}
+impl Material for DiffuseLight {
+    fn scatter(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Option<(Ray, Vec3)> {
+        None
+    }
+
+    fn emitted(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Vec3 {
+        self.albedo
     }
 }

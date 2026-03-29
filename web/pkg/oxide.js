@@ -30,12 +30,14 @@ export class WasmRenderer {
      * @param {number} target_z
      * @param {number} samples
      * @param {number} termination_prob
+     * @param {number} focus_distance
+     * @param {number} aperture
      * @returns {Uint8Array}
      */
-    render(width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termination_prob) {
+    render(width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termination_prob, focus_distance, aperture) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.wasmrenderer_render(retptr, this.__wbg_ptr, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termination_prob);
+            wasm.wasmrenderer_render(retptr, this.__wbg_ptr, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termination_prob, focus_distance, aperture);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var v1 = getArrayU8FromWasm0(r0, r1).slice();

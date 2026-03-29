@@ -95,6 +95,8 @@ impl WasmRenderer {
         target_z: f64,
         samples: u32,
         termination_prob: f64,
+        focus_distance: f64,
+        aperture: f64,
     ) -> Vec<u8> {
         let camera = Camera::look_at(
             width as usize,
@@ -102,6 +104,8 @@ impl WasmRenderer {
             fov,
             Vec3::new(cam_x, cam_y, cam_z),
             Vec3::new(target_x, target_y, target_z),
+            focus_distance,
+            aperture,
         );
         let mut world = World::new(
             camera,

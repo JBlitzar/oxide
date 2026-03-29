@@ -14,9 +14,9 @@ self.onmessage = async (e) => {
 
   if (type === "render") {
     if (!renderer) return;
-    const { w, h, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termProb } = params;
+    const { w, h, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termProb, focus_distance, aperture } = params;
     const t0 = performance.now();
-    const rgba = renderer.render(w, h, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termProb);
+    const rgba = renderer.render(w, h, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termProb, focus_distance, aperture);
     const dt = performance.now() - t0;
     postMessage({ type: "frame", id, width: w, height: h, dt, rgba: rgba.buffer }, [rgba.buffer]);
   }

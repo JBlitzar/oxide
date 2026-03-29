@@ -5,7 +5,7 @@ export class WasmRenderer {
     free(): void;
     [Symbol.dispose](): void;
     constructor();
-    render(width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, samples: number, termination_prob: number): Uint8Array;
+    render(width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, samples: number, termination_prob: number, focus_distance: number, aperture: number): Uint8Array;
 }
 
 export function initThreadPool(num_threads: number): Promise<any>;
@@ -26,7 +26,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly __wbg_wasmrenderer_free: (a: number, b: number) => void;
     readonly wasmrenderer_new: () => number;
-    readonly wasmrenderer_render: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+    readonly wasmrenderer_render: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
     readonly __wbg_wbg_rayon_poolbuilder_free: (a: number, b: number) => void;
     readonly initThreadPool: (a: number) => number;
     readonly wbg_rayon_poolbuilder_build: (a: number) => void;

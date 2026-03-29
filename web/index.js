@@ -14,6 +14,8 @@ let isDragging = false;
 let lastX = 0,
   lastY = 0;
 const FOV = Math.PI / 2;
+const FOCUS_DISTANCE = 8.0;
+const APERTURE = 0.04;
 
 const PREVIEW_SCALE = 0.125;
 const PASSES = [
@@ -75,6 +77,8 @@ function renderPreview() {
     target.z,
     1,
     0.3,
+    FOCUS_DISTANCE,
+    APERTURE,
   );
   const dt = performance.now() - t0;
   displayFrame(rgba.buffer, w, h, `${w}x${h} | ${dt.toFixed(0)}ms | preview`);
@@ -105,6 +109,8 @@ function sendQualityRender(passIndex, token) {
       target_z: target.z,
       samples,
       termProb,
+      focus_distance: FOCUS_DISTANCE,
+      aperture: APERTURE,
     },
   });
 }

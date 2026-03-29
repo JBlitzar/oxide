@@ -14,11 +14,13 @@ fn bench_render(c: &mut Criterion) {
         b.iter(|| {
             let mut world = World::new_random_spheres(
                 Camera::look_at(
-                    480,
                     320,
+                    240,
                     90.0_f64.to_radians(),
                     Vec3::new(0.0, 2.0, 0.0),
                     Vec3::new(0.0, 0.0, -5.0),
+                    5.385,
+                    0.04,
                 ),
                 100,
             );
@@ -39,11 +41,13 @@ fn bench_render_cube(c: &mut Criterion) {
             ))];
             let mut world = World::new(
                 Camera::look_at(
-                    480,
                     320,
+                    240,
                     90.0_f64.to_radians(),
                     Vec3::new(0.0, 2.0, 0.0),
                     Vec3::new(0.0, 0.0, -5.0),
+                    5.385,
+                    0.04,
                 ),
                 BVHNode::of_objects_and_endpoints(&mut objects_vec),
                 Some(20),

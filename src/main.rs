@@ -11,6 +11,7 @@ use crate::material::Checkerboard;
 
 use crate::material::Dielectric;
 
+use crate::material::DiffuseLight;
 use crate::material::Metal;
 
 use crate::bvh::BVHNode;
@@ -22,6 +23,16 @@ use crate::world::World;
 
 fn main() {
     fastrand::seed(42);
+    let cheap = option_env!("OXIDE_PROFILE") == Some("iteration");
+    let (width, height, samples, roulette) = if cheap {
+        (320, 240, 20, 0.1)
+    } else {
+        (1920, 1080, 100, 0.1)
+    };
+    println!(
+        "Rendering at {}x{} with {} samples per pixel and termination probability of {}",
+        width, height, samples, roulette
+    );
     let mut objects: Vec<Arc<dyn geometry::Hittable>> = vec![
         Arc::new(MeshBVH::from_stl(
             "teapot_fixed.stl",
@@ -30,42 +41,48 @@ fn main() {
                 refractive_index: 1.7,
             }),
             Some(2.0),
-            Some(Vec3::new(-1.0, 0.0, -5.0)),
+            Some(Vec3::new(-2.0, 0.0, -5.0)),
             None,
         )),
         Arc::new(MeshBVH::from_stl(
             "dragon.stl",
-            Box::new(Metal {
+            Box::new(Lambertian {
                 albedo: Vec3::new(0.7, 1.0, 1.0),
-                fuzz: 0.9,
             }),
             Some(2.0),
-            Some(Vec3::new(1.0, -0.5, -5.0)),
+            Some(Vec3::new(2.0, -0.5, -5.0)),
             Some(Vec3::new(0.0, 0.0, 0.0)),
         )),
         Arc::new(geometry::sphere::Sphere {
-            center: Vec3::new(-2.0, 0.7, -7.0),
+            center: Vec3::new(-2.0, 5.0, -5.0),
             radius: 0.7,
-            material: Box::new(Metal {
-                albedo: Vec3::new(0.7, 0.6, 0.5),
-                fuzz: 0.0,
+            material: Box::new(DiffuseLight {
+                albedo: Vec3::new(0.15, 6.0, 6.0),
             }),
         }),
         Arc::new(geometry::sphere::Sphere {
-            center: Vec3::new(2.0, 0.7, -7.0),
+            center: Vec3::new(2.0, 5.0, -5.0),
             radius: 0.7,
-            material: Box::new(Dielectric {
-                albedo: Vec3::new(1.0, 1.0, 1.0),
-                refractive_index: 1.5,
+            material: Box::new(DiffuseLight {
+                albedo: Vec3::new(6.0, 0.6, 0.6),
             }),
+            // material: Box::new(Dielectric {
+            //     albedo: Vec3::new(1.0, 1.0, 1.0),
+            //     refractive_index: 1.5,
+            // }),
         }),
         Arc::new(geometry::sphere::Sphere {
-            center: Vec3::new(0.0, 0.7, -7.0),
+            center: Vec3::new(0.0, 0.7, -5.0),
             radius: 0.7,
             material: Box::new(Lambertian {
-                albedo: Vec3::new(0.1, 0.1, 0.9),
+                albedo: Vec3::new(0.2, 0.5, 0.5),
             }),
         }),
+        // Arc::new(geometry::mesh::MeshBVH::build_cube(
+        //         Vec3::new(0.0, 0.7, -7.0),
+        //         0.5,
+
+        //     )),
         Arc::new(geometry::sphere::Sphere {
             center: Vec3::new(0.0, -1000.0, 0.0),
             radius: 1000.0,
@@ -80,15 +97,17 @@ fn main() {
 
     let mut world = World::new(
         Camera::look_at(
-            1920,
-            1080,
+            width,
+            height,
             90.0_f64.to_radians(),
-            Vec3::new(0.0, 2.0, 0.0),
-            Vec3::new(0.0, 0.0, -5.0),
+            Vec3::new(3.0, 2.5, 0.0),
+            Vec3::new(0.5, 0.0, -5.0),
+            5.385,
+            0.04,
         ),
         objects,
-        Some(100),
-        Some(0.01),
+        Some(samples),
+        Some(roulette),
     );
     let start = std::time::Instant::now();
     world.render();

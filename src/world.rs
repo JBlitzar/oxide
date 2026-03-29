@@ -12,6 +12,9 @@ use crate::vec3::Vec3;
 use fastrand;
 use rayon::prelude::*;
 
+#[cfg(feature = "native")]
+use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
+
 pub struct World {
     // one world has one camera
     camera: Camera,
@@ -90,14 +93,41 @@ impl World {
     }
 
     pub fn render(&mut self) {
-        let pixels: Vec<[u8; 3]> = (0..self.camera.height_px * self.camera.width_px)
-            .into_par_iter()
-            .map(|i| {
-                let x = i % self.camera.width_px;
-                let y = i / self.camera.width_px;
-                self.cast_rays_and_average(x, y, self.samples)
-            })
-            .collect();
+        let width = self.camera.width_px;
+        let height = self.camera.height_px;
+        let total = width * height;
+
+        #[cfg(feature = "native")]
+        let pixels: Vec<[u8; 3]> = {
+            let pb = ProgressBar::new(height as u64);
+            pb.set_style(
+                ProgressStyle::with_template("{wide_bar} {pos}/{len} ({eta}) | ({elapsed} elapsed)")
+                    .expect("invalid progress bar template")
+                    .progress_chars("=>-"),
+            );
+            let mut out = vec![[0u8; 3]; total];
+            out.par_chunks_mut(width)
+                .progress_with(pb.clone())
+                .enumerate()
+                .for_each(|(y, row)| {
+                    for x in 0..width {
+                        row[x] = self.cast_rays_and_average(x, y, self.samples);
+                    }
+                });
+            pb.finish_and_clear();
+            out
+        };
+
+        #[cfg(not(feature = "native"))]
+        let pixels: Vec<[u8; 3]> = {
+            let mut out = vec![[0u8; 3]; total];
+            out.par_chunks_mut(width).enumerate().for_each(|(y, row)| {
+                for x in 0..width {
+                    row[x] = self.cast_rays_and_average(x, y, self.samples);
+                }
+            });
+            out
+        };
 
         for (i, pixel) in pixels.iter().enumerate() {
             let x = i % self.camera.width_px;
@@ -130,27 +160,47 @@ impl World {
     pub fn cast_ray(&self, x: usize, y: usize) -> Vec3 {
         let mut current_ray = self.camera.get_ray_direction(x, y);
         let mut current_color = Vec3::new(1.0, 1.0, 1.0);
+        let mut depth: u32 = 0;
+        let max_depth: u32 = 100;
         loop {
+            if depth >= max_depth {
+                break;
+            }
             if let Some(hit) = self.objects.hit(&current_ray, f64::INFINITY) {
+                let emitted = hit.material.emitted(&current_ray, &hit);
                 if let Some((scattered, attenuation)) = hit.material.scatter(&current_ray, &hit) {
                     current_ray = scattered;
                     current_color = current_color.mul(&attenuation);
+                    current_color = current_color.add(&emitted);
                     if current_color.max_component() < 0.01 {
                         return Vec3::ZERO;
                     }
                 } else {
-                    return Vec3::ZERO;
+                    return current_color.mul(&emitted);
                 }
             } else {
                 let unit_dir = current_ray.direction.normalize();
                 let t = 0.5 * (unit_dir.y + 1.0);
-                let sky = Vec3::new(1.0, 1.0, 1.0)
+                let sky_color_top = Vec3::new(9.0 / 255.0, 19.0 / 255.0, 84.0 / 255.0);
+                let sky_color_bottom = Vec3::new(27.0 / 255.0, 11.0 / 255.0, 150.0 / 255.0);
+                let sky = sky_color_bottom
                     .scalar_mul(1.0 - t)
-                    .add(&Vec3::new(0.5, 0.7, 1.0).scalar_mul(t));
+                    .add(&sky_color_top.scalar_mul(t));
                 return current_color.mul(&sky);
             }
-            if fastrand::f64() < self.termination_prob {
-                break;
+            depth += 1;
+
+            // Throughput-based Russian roulette (after a small minimum depth).
+            // `termination_prob` is used as a *minimum survival probability* clamp.
+            if depth >= 5 {
+                let p = current_color
+                    .max_component()
+                    .clamp(self.termination_prob, 0.95)
+                    .max(1e-12);
+                if fastrand::f64() > p {
+                    break;
+                }
+                current_color = current_color.scalar_mul(1.0 / p);
             }
         }
         Vec3::ZERO
