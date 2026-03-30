@@ -27,7 +27,7 @@ fn main() {
     let (width, height, samples, roulette) = if cheap {
         (320, 240, 20, 0.1)
     } else {
-        (1920, 1080, 100, 0.1)
+        (1920, 1080, 1_000, 0.1)
     };
     println!(
         "Rendering at {}x{} with {} samples per pixel and termination probability of {}",
