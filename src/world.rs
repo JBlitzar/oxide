@@ -162,6 +162,9 @@ impl World {
         let mut current_color = Vec3::new(1.0, 1.0, 1.0);
         let mut depth: u32 = 0;
         let max_depth: u32 = 100;
+        let sky_color_top = Vec3::new(9.0 / 255.0, 19.0 / 255.0, 84.0 / 255.0);
+        let sky_color_bottom = Vec3::new(27.0 / 255.0, 11.0 / 255.0, 150.0 / 255.0);
+               
         loop {
             if depth >= max_depth {
                 break;
@@ -181,9 +184,7 @@ impl World {
             } else {
                 let unit_dir = current_ray.direction.normalize();
                 let t = 0.5 * (unit_dir.y + 1.0);
-                let sky_color_top = Vec3::new(9.0 / 255.0, 19.0 / 255.0, 84.0 / 255.0);
-                let sky_color_bottom = Vec3::new(27.0 / 255.0, 11.0 / 255.0, 150.0 / 255.0);
-                let sky = sky_color_bottom
+                 let sky = sky_color_bottom
                     .scalar_mul(1.0 - t)
                     .add(&sky_color_top.scalar_mul(t));
                 return current_color.mul(&sky);
@@ -203,7 +204,7 @@ impl World {
                 current_color = current_color.scalar_mul(1.0 / p);
             }
         }
-        Vec3::ZERO
+        sky_color_top
     }
     fn write_pixel(&mut self, x: usize, y: usize, color: [u8; 3]) {
         let index = (y * self.camera.width_px + x) * 3;
