@@ -5,13 +5,17 @@ use crate::{
     vec3::{Ray, Vec3},
 };
 
-pub(crate) struct Sphere {
-    pub(crate) center: Vec3,
-    pub(crate) radius: f64,
-    pub(crate) material: Box<dyn Material>,
+pub struct Sphere {
+    pub center: Vec3,
+    pub radius: f64,
+    pub material: Box<dyn Material>,
 }
 
 impl Hittable for Sphere {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn hit(&'_ self, ray: &Ray, t_max: f64) -> Option<HitRecord<'_>> {
         // https://raytracing.github.io/books/RayTracingInOneWeekend.html#surfacenormalsandmultipleobjects/simplifyingtheray-sphereintersectioncode
         let oc = ray.origin.sub(&self.center);
@@ -31,6 +35,7 @@ impl Hittable for Sphere {
             let normal = (point.sub(&self.center)).normalize();
             Some(HitRecord {
                 point,
+                geo_normal: normal,
                 normal,
                 material: self.material.as_ref(),
                 t,

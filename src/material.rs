@@ -1,4 +1,6 @@
-use crate::vec3::{Ray, Vec3};
+use std::{any::Any, f64::consts::PI};
+
+use crate::vec3::{Ray, Vec3, random_in_unit_sphere};
 
 pub enum MaterialType {
     Lambertian(Lambertian),
@@ -9,24 +11,9 @@ pub enum MaterialType {
 pub struct HitRecord<'a> {
     pub(crate) point: Vec3,
     pub(crate) normal: Vec3,
+    pub(crate) geo_normal: Vec3,
     pub(crate) material: &'a dyn Material,
     pub(crate) t: f64,
-}
-
-fn random_in_unit_sphere() -> Vec3 {
-    // better way, because it's rejection sampling
-    let mut p;
-    loop {
-        p = Vec3::new(
-            fastrand::f64() * 2.0 - 1.0,
-            fastrand::f64() * 2.0 - 1.0,
-            fastrand::f64() * 2.0 - 1.0,
-        );
-        if p.length_squared() < 1.0 {
-            break;
-        }
-    }
-    p
 }
 
 fn random_cosine_direction() -> Vec3 {
@@ -59,9 +46,13 @@ fn cosine_weighted_hemisphere(normal: &Vec3) -> Vec3 {
 }
 
 pub trait Material: Send + Sync {
+    fn as_any(&self) -> &dyn Any;
     fn scatter(&self, ray_in: &Ray, hit_record: &HitRecord) -> Option<(Ray, Vec3)>;
     fn emitted(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Vec3 {
         Vec3::new(0.0, 0.0, 0.0)
+    }
+    fn eval_diffuse_brdf(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Option<Vec3> {
+        None
     }
 }
 
@@ -70,10 +61,18 @@ pub struct Lambertian {
     pub albedo: Vec3, // color lol
 }
 impl Material for Lambertian {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn scatter(&self, _ray_in: &Ray, hit_record: &HitRecord) -> Option<(Ray, Vec3)> {
         let dir = cosine_weighted_hemisphere(&hit_record.normal);
-
-        Some((Ray::new(hit_record.point, dir), self.albedo))
+        let origin = hit_record
+            .point
+            .add(&hit_record.geo_normal.scalar_mul(1e-3));
+        Some((Ray::new(origin, dir), self.albedo))
+    }
+    fn eval_diffuse_brdf(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Option<Vec3> {
+        Some(self.albedo.scalar_mul(1.0 / PI))
     }
 }
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -82,14 +81,16 @@ pub struct Metal {
     pub fuzz: f64,
 }
 impl Material for Metal {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn scatter(&self, ray_in: &Ray, hit_record: &HitRecord) -> Option<(Ray, Vec3)> {
         let reflected_dir = reflect(&ray_in.direction, &hit_record.normal);
         let fuzz = random_in_unit_sphere().scalar_mul(self.fuzz);
-
-        Some((
-            Ray::new(hit_record.point, reflected_dir.add(&fuzz)),
-            self.albedo,
-        ))
+        let origin = hit_record
+            .point
+            .add(&hit_record.geo_normal.scalar_mul(1e-3));
+        Some((Ray::new(origin, reflected_dir.add(&fuzz)), self.albedo))
     }
 }
 
@@ -117,6 +118,9 @@ impl Dielectric {
     }
 }
 impl Material for Dielectric {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     // https://raytracing.github.io/books/RayTracingInOneWeekend.html#dielectrics
     fn scatter(&self, ray_in: &Ray, hit_record: &HitRecord) -> Option<(Ray, Vec3)> {
         let attenuation = self.albedo;
@@ -137,14 +141,20 @@ impl Material for Dielectric {
 
         let cannot_refract = ri * sin_theta > 1.0;
 
-        let direction: Vec3;
+        let (direction, origin);
         if cannot_refract || Dielectric::reflectance(cos_theta, ri) > fastrand::f64() {
             direction = reflect(&unit_direction, &hit_record.normal);
+            origin = hit_record
+                .point
+                .add(&hit_record.geo_normal.scalar_mul(1e-3));
         } else {
             direction = refract(&unit_direction, &hit_record.normal, ri);
+            origin = hit_record
+                .point
+                .add(&hit_record.geo_normal.scalar_mul(-1e-3));
         }
 
-        let scattered = Ray::new(hit_record.point, direction);
+        let scattered = Ray::new(origin, direction);
 
         Some((scattered, attenuation))
     }
@@ -157,6 +167,9 @@ pub struct Checkerboard {
 }
 
 impl Material for Checkerboard {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn scatter(&self, _ray_in: &Ray, hit: &HitRecord) -> Option<(Ray, Vec3)> {
         let x = (hit.point.x * self.scale).floor() as i32;
         let z = (hit.point.z * self.scale).floor() as i32;
@@ -167,7 +180,18 @@ impl Material for Checkerboard {
         };
 
         let dir = cosine_weighted_hemisphere(&hit.normal);
-        Some((Ray::new(hit.point, dir), color))
+        let origin = hit.point.add(&hit.geo_normal.scalar_mul(1e-3));
+        Some((Ray::new(origin, dir), color))
+    }
+    fn eval_diffuse_brdf(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Option<Vec3> {
+        let x = (_hit_record.point.x * self.scale).floor() as i32;
+        let z = (_hit_record.point.z * self.scale).floor() as i32;
+        let color = if (x + z) % 2 == 0 {
+            self.color_a
+        } else {
+            self.color_b
+        };
+        Some(color.scalar_mul(1.0 / PI))
     }
 }
 
@@ -176,6 +200,9 @@ pub struct DiffuseLight {
     pub albedo: Vec3,
 }
 impl Material for DiffuseLight {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn scatter(&self, _ray_in: &Ray, _hit_record: &HitRecord) -> Option<(Ray, Vec3)> {
         None
     }

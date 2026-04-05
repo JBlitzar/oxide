@@ -1,3 +1,4 @@
+use std::num::NonZero;
 use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -49,9 +50,10 @@ fn bench_render_cube(c: &mut Criterion) {
                     5.385,
                     0.04,
                 ),
-                BVHNode::of_objects_and_endpoints(&mut objects_vec),
+                objects_vec,
                 Some(20),
                 Some(0.1),
+                None,
             );
             world.render();
         })

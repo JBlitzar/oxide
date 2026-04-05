@@ -9,6 +9,10 @@ pub trait Hittable: Send + Sync {
     fn hit(&self, ray: &Ray, t_max: f64) -> Option<HitRecord<'_>>;
 
     fn bounding_box(&self) -> AABB;
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn is_leaf(&self) -> bool {
+        true
+    }
 }
 
 pub struct HittableList {
@@ -17,13 +21,16 @@ pub struct HittableList {
     pub bounding_box: Option<AABB>,
 }
 impl Hittable for HittableList {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
     fn hit(&'_ self, ray: &Ray, t_max: f64) -> Option<HitRecord<'_>> {
         let mut closest_hit: Option<HitRecord> = None;
         for obj in &self.objs {
-            if let Some(hit) = obj.hit(ray, t_max) {
-                if closest_hit.is_none() || hit.t < closest_hit.as_ref().unwrap().t {
-                    closest_hit = Some(hit);
-                }
+            if let Some(hit) = obj.hit(ray, t_max)
+                && (closest_hit.is_none() || hit.t < closest_hit.as_ref().unwrap().t)
+            {
+                closest_hit = Some(hit);
             }
         }
         closest_hit
@@ -37,6 +44,12 @@ impl Hittable for HittableList {
 }
 
 #[deny(deprecated)]
+impl Default for HittableList {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HittableList {
     pub fn new() -> Self {
         HittableList {
@@ -48,7 +61,7 @@ impl HittableList {
     pub fn add(&mut self, obj: Box<dyn Hittable>) {
         self.bounding_box = match &self.bounding_box {
             None => Some(obj.bounding_box()),
-            Some(current_box) => Some(AABB::of_boxes(&current_box, &obj.bounding_box())),
+            Some(current_box) => Some(AABB::of_boxes(current_box, &obj.bounding_box())),
         };
         self.objs.push(obj);
     }
@@ -56,10 +69,10 @@ impl HittableList {
     pub fn hit(&'_ self, ray: &Ray) -> Option<HitRecord<'_>> {
         let mut closest_hit: Option<HitRecord> = None;
         for obj in &self.objs {
-            if let Some(hit) = obj.hit(ray, f64::INFINITY) {
-                if closest_hit.is_none() || hit.t < closest_hit.as_ref().unwrap().t {
-                    closest_hit = Some(hit);
-                }
+            if let Some(hit) = obj.hit(ray, f64::INFINITY)
+                && (closest_hit.is_none() || hit.t < closest_hit.as_ref().unwrap().t)
+            {
+                closest_hit = Some(hit);
             }
         }
         closest_hit

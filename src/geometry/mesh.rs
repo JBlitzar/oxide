@@ -65,7 +65,7 @@ impl Triangle {
 
         let tvec = ray.origin.sub(&self.v0);
         let u = tvec.dot(&pvec) * inv_det;
-        if u < 0.0 || u > 1.0 {
+        if !(0.0..=1.0).contains(&u) {
             return None;
         }
 
@@ -76,22 +76,35 @@ impl Triangle {
         }
 
         let t = v0v2.dot(&qvec) * inv_det;
-        if t < 1e-8 {
+        if t < 0.001 {
             return None;
         }
         let w = 1.0 - u - v;
+        let cross = self.e01.cross(&self.e02);
+        if cross.length_squared() < 1e-12 {
+            return None;
+        }
+        let geo_normal = cross.normalize();
         let mut normal = self
             .n0
             .scalar_mul(w)
             .add(&self.n1.scalar_mul(u))
             .add(&self.n2.scalar_mul(v))
             .normalize();
-        if ray.direction.dot(&normal) > 0.0 {
+        // Ensure interpolated normal is on the same side as the geometric normal
+        if normal.dot(&geo_normal) < 0.0 {
             normal = normal.scalar_mul(-1.0);
+        }
+        // Flip both if ray hits from the back
+        let mut gn = geo_normal;
+        if ray.direction.dot(&geo_normal) > 0.0 {
+            normal = normal.scalar_mul(-1.0);
+            gn = gn.scalar_mul(-1.0);
         }
         Some(HitRecord {
             point: ray.origin.add(&ray.direction.scalar_mul(t)),
             normal,
+            geo_normal: gn,
             material,
             t,
         })
@@ -109,11 +122,15 @@ pub struct MeshBVHNode {
 pub struct MeshBVH {
     nodes: Vec<MeshBVHNode>,
     triangles: Vec<Triangle>,
-    material: Box<dyn Material>,
+    pub material: Box<dyn Material>,
     root: usize,
 }
 
 impl MeshBVH {
+    pub fn with_material(&self, material: Box<dyn Material>) -> Self {
+        Self::new(self.triangles.clone(), material)
+    }
+
     fn new(triangles: Vec<Triangle>, material: Box<dyn Material>) -> Self {
         let mut bvh = MeshBVH {
             nodes: Vec::new(),
@@ -135,13 +152,7 @@ impl MeshBVH {
         let raw_faces: Vec<[usize; 3]> = stl
             .faces
             .iter()
-            .map(|face| {
-                [
-                    face.vertices[0] as usize,
-                    face.vertices[1] as usize,
-                    face.vertices[2] as usize,
-                ]
-            })
+            .map(|face| [face.vertices[0], face.vertices[1], face.vertices[2]])
             .collect();
 
         (raw_positions, raw_faces)
@@ -388,6 +399,9 @@ impl MeshBVH {
 }
 
 impl Hittable for MeshBVH {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
     fn hit(&'_ self, ray: &Ray, t_max: f64) -> Option<HitRecord<'_>> {
         self.hit(ray, t_max)
     }
