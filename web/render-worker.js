@@ -47,7 +47,6 @@ self.onmessage = (e) => {
 
   if (msg.type === "render") {
     if (!renderer) return;
-    // Apply any queued mutations first
     while (pendingMutations.length > 0) applyMutation(pendingMutations.shift());
     const { token, pass, params } = msg;
     const { w, h, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, samples, termProb, focus_distance, aperture } = params;

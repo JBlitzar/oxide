@@ -35,25 +35,14 @@ let cachedOutlineMask = null;
 let cachedOutlineW = 0;
 let cachedOutlineH = 0;
 
-// ============================================================
-// Worker progressive rendering.
-//
-// Simple model:
-//   - Worker always has exactly 0 or 1 render in flight.
-//   - `token` is bumped on every invalidation. Stale results are
-//     discarded. If worker is busy with stale work, it gets
-//     terminated and respawned (mutations replayed from log).
-//   - During drag: no renders sent. On mouseup: kick it off.
-// ============================================================
 let qualityWorker = null;
 let workerReady = false;
 let workerBusy = false;
 let currentToken = 0;
 let currentPass = 0;
-let mutationLog = []; // replayed to new workers after respawn
+let mutationLog = [];
 const workerUrl = new URL("./render-worker.js", import.meta.url);
 
-// --- UI refs ---
 const skySelect = document.getElementById("sky-select");
 const panel = document.getElementById("panel");
 const panelContent = document.getElementById("panel-content");
@@ -75,7 +64,6 @@ const btnApply = document.getElementById("btn-apply");
 const btnDelete = document.getElementById("btn-delete");
 const addObjectSelect = document.getElementById("add-object");
 
-// --- Camera ---
 function cameraFromOrbit() {
   const x = target.x + distance * Math.cos(elevation) * Math.sin(azimuth);
   const y = target.y + distance * Math.sin(elevation);
@@ -98,7 +86,6 @@ function cameraParams() {
   };
 }
 
-// --- Outline ---
 function safeComputeOutline() {
   cachedOutlineMask = null;
   if (selectedIndex < 0 || !mainRenderer) return;
@@ -151,7 +138,6 @@ function drawOutlineOverlay() {
   ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
 }
 
-// --- Display ---
 function displayFrame(rgba, w, h, label) {
   const imgData = new ImageData(new Uint8ClampedArray(rgba), w, h);
   if (w < canvas.width || h < canvas.height) {
@@ -169,7 +155,6 @@ function displayFrame(rgba, w, h, label) {
     label;
 }
 
-// --- Preview (main thread, synchronous) ---
 function renderPreview() {
   if (!mainRenderer) return;
   const w = Math.max(1, Math.floor(canvas.width * PREVIEW_SCALE));
@@ -195,7 +180,6 @@ function renderPreview() {
   displayFrame(rgba.buffer, w, h, `${w}x${h} | ${dt.toFixed(0)}ms | preview`);
 }
 
-// --- Progressive rendering ---
 function sendRender() {
   if (!workerReady || isDragging) return;
   const [scale, samples, termProb] = PASSES[currentPass];
@@ -228,8 +212,7 @@ function sendRender() {
 function kick() {
   currentPass = 0;
   if (workerBusy) {
-    // Worker is stuck on a stale render. Kill it and start fresh.
-    spawnWorker(); // onReady will call kick() -> sendRender()
+    spawnWorker();
     return;
   }
   sendRender();
@@ -247,7 +230,6 @@ function onWorkerMessage(e) {
   workerBusy = false;
 
   if (msg.token !== currentToken) {
-    // Stale -- kick fresh if not dragging
     if (!isDragging) kick();
     return;
   }
@@ -267,7 +249,6 @@ function sendWorkerMessage(msg) {
   if (qualityWorker) qualityWorker.postMessage(msg);
 }
 
-// --- High-level actions ---
 function invalidateAndKick() {
   currentToken++;
   renderPreview();
@@ -280,23 +261,20 @@ function fullRerender() {
   kick();
 }
 
-// --- Worker setup ---
 function spawnWorker() {
   if (qualityWorker) qualityWorker.terminate();
   workerReady = false;
   workerBusy = false;
   qualityWorker = new Worker(workerUrl, { type: "module" });
   qualityWorker.onmessage = onWorkerMessage;
-  // Replay mutations so the new worker's scene matches the main thread
   for (const msg of mutationLog) qualityWorker.postMessage(msg);
 }
 
-// --- Sky ---
 const HDR_SKIES = [
   { name: "Citrus Orchard", url: "res/citrus_orchard_road_puresky_4k.hdr" },
   { name: "Qwantani Moonrise", url: "res/qwantani_moonrise_puresky_4k.hdr" },
 ];
-const hdrCache = new Map(); // url -> Uint8Array
+const hdrCache = new Map();
 
 function populateSkys() {
   if (!mainRenderer) return;
@@ -342,7 +320,6 @@ skySelect.addEventListener("change", async () => {
   }
 });
 
-// --- Picking ---
 function selectObject(index) {
   selectedIndex = index;
   cachedOutlineMask = null;
@@ -361,7 +338,6 @@ function deselect() {
   fullRerender();
 }
 
-// --- Panel logic ---
 objType.addEventListener("change", () => {
   const isSphere = objType.value === "sphere";
   paramRadius.style.display = isSphere ? "block" : "none";
@@ -484,7 +460,7 @@ btnDelete.addEventListener("click", () => {
 addObjectSelect.addEventListener("change", () => {
   if (!mainRenderer) return;
   const val = addObjectSelect.value;
-  addObjectSelect.selectedIndex = 0; // reset to "Add object..."
+  addObjectSelect.selectedIndex = 0;
   let idx;
   if (val === "sphere") {
     let x = Math.random() * 6 - 3;
@@ -583,7 +559,6 @@ function loadObjectToPanel(index) {
   fieldRI.classList.toggle("visible", mt === 2);
 }
 
-// --- Resize ---
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -592,13 +567,12 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 
-// --- Mouse ---
 canvas.addEventListener("mousedown", (e) => {
   isDragging = true;
   dragMoved = false;
   lastX = e.clientX;
   lastY = e.clientY;
-  currentToken++; // invalidate any in-flight renders immediately
+  currentToken++;
 });
 
 window.addEventListener("mousemove", (e) => {
@@ -649,7 +623,6 @@ window.addEventListener("mouseup", (e) => {
     }
   }
   isDragging = false;
-  // Kick worker first, then outline (so worker starts while main thread does outline)
   kick();
   if (selectedIndex >= 0) safeComputeOutline();
 });
@@ -665,12 +638,10 @@ canvas.addEventListener(
   { passive: false },
 );
 
-// --- Keyboard ---
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") deselect();
 });
 
-// --- Init ---
 async function main() {
   await init();
   mainRenderer = new WasmRenderer();

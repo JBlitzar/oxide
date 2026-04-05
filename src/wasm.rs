@@ -63,7 +63,6 @@ const SKY_TABLE: &[SkyEntry] = &[
     },
 ];
 
-// 0=sphere, 1=cube, 2=mesh(STL/readonly geometry)
 #[derive(Clone, Copy, PartialEq)]
 enum ObjectKind {
     Sphere,
@@ -151,8 +150,6 @@ impl WasmRenderer {
         }
     }
 
-    // --- Sky ---
-
     pub fn sky_count(&self) -> u32 {
         SKY_TABLE.len() as u32
     }
@@ -182,8 +179,6 @@ impl WasmRenderer {
         (SKY_TABLE[self.sky_index].build)()
     }
 
-    // --- Picking & Outline ---
-
     pub fn pick(
         &self,
         pixel_x: u32,
@@ -207,7 +202,7 @@ impl WasmRenderer {
             Vec3::new(cam_x, cam_y, cam_z),
             Vec3::new(target_x, target_y, target_z),
             focus_distance,
-            0.0, // no DOF for picking -- deterministic ray through pixel center
+            0.0,
         );
         let world = World::new(
             camera,
@@ -249,7 +244,7 @@ impl WasmRenderer {
             Vec3::new(cam_x, cam_y, cam_z),
             Vec3::new(target_x, target_y, target_z),
             focus_distance,
-            0.0, // no DOF for outline mask
+            0.0,
         );
         let mut world = World::new(
             camera,
@@ -265,15 +260,10 @@ impl WasmRenderer {
         }
     }
 
-    // --- Scene CRUD ---
-
     pub fn object_count(&self) -> u32 {
         self.scene.len() as u32
     }
 
-    // Returns [obj_type, x, y, z, param, mat_type, r, g, b, fuzz, ri]
-    // obj_type: 0=sphere, 1=cube, 2=mesh(readonly geom)
-    // mat_type: 0=Lambertian, 1=Metal, 2=Dielectric, 3=DiffuseLight, 4=Checkerboard
     pub fn get_object_info(&self, index: u32) -> Vec<f64> {
         let idx = index as usize;
         if idx >= self.scene.len() {
@@ -432,8 +422,6 @@ impl WasmRenderer {
         }
     }
 
-    // --- Render ---
-
     pub fn render(
         &self,
         width: u32,
@@ -500,7 +488,6 @@ impl WasmRenderer {
         fuzz: f64,
         refractive_index: f64,
     ) -> Box<dyn Material> {
-        // 0=Lambertian, 1=Metal, 2=Dielectric, 3=DiffuseLight, 4=Checkerboard
         let albedo = Vec3::new(r, g, b);
         match mat_type {
             1 => Box::new(Metal { albedo, fuzz }),
