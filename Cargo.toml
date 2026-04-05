@@ -45,6 +45,7 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+overflow-checks = false
 
 # Fast local builds with some optimization (between dev and release).
 [profile.iteration]

@@ -92,7 +92,12 @@ impl AABB {
                 min_y = min_y.min(v);
                 max_y = max_y.max(v);
             } else {
-                return (0, camera.width_px, 0, camera.height_px);
+                return (
+                    0,
+                    camera.width_px.saturating_sub(1),
+                    0,
+                    camera.height_px.saturating_sub(1),
+                );
             }
         }
 

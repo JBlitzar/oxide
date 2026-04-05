@@ -4,8 +4,21 @@
 export class WasmRenderer {
     free(): void;
     [Symbol.dispose](): void;
+    add_cube(x: number, y: number, z: number, size: number, mat_type: number, r: number, g: number, b: number, fuzz: number, refractive_index: number): number;
+    add_sphere(x: number, y: number, z: number, radius: number, mat_type: number, r: number, g: number, b: number, fuzz: number, refractive_index: number): number;
+    get_object_info(index: number): Float64Array;
     constructor();
+    object_count(): number;
+    outline(object_index: number, width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, focus_distance: number, _aperture: number, radius: number): Uint8Array;
+    pick(pixel_x: number, pixel_y: number, width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, focus_distance: number, _aperture: number): number;
+    remove_object(index: number): void;
     render(width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, samples: number, termination_prob: number, focus_distance: number, aperture: number): Uint8Array;
+    set_sky(index: number): void;
+    sky_count(): number;
+    sky_name(index: number): string;
+    update_cube(index: number, x: number, y: number, z: number, size: number, mat_type: number, r: number, g: number, b: number, fuzz: number, refractive_index: number): void;
+    update_mesh_material(index: number, mat_type: number, r: number, g: number, b: number, fuzz: number, refractive_index: number): void;
+    update_sphere(index: number, x: number, y: number, z: number, radius: number, mat_type: number, r: number, g: number, b: number, fuzz: number, refractive_index: number): void;
 }
 
 export function initThreadPool(num_threads: number): Promise<any>;
@@ -25,8 +38,21 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly __wbg_wasmrenderer_free: (a: number, b: number) => void;
+    readonly wasmrenderer_add_cube: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
+    readonly wasmrenderer_add_sphere: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
+    readonly wasmrenderer_get_object_info: (a: number, b: number, c: number) => void;
     readonly wasmrenderer_new: () => number;
+    readonly wasmrenderer_object_count: (a: number) => number;
+    readonly wasmrenderer_outline: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
+    readonly wasmrenderer_pick: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
+    readonly wasmrenderer_remove_object: (a: number, b: number) => void;
     readonly wasmrenderer_render: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
+    readonly wasmrenderer_set_sky: (a: number, b: number) => void;
+    readonly wasmrenderer_sky_count: (a: number) => number;
+    readonly wasmrenderer_sky_name: (a: number, b: number, c: number) => void;
+    readonly wasmrenderer_update_cube: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => void;
+    readonly wasmrenderer_update_mesh_material: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly wasmrenderer_update_sphere: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => void;
     readonly __wbg_wbg_rayon_poolbuilder_free: (a: number, b: number) => void;
     readonly initThreadPool: (a: number) => number;
     readonly wbg_rayon_poolbuilder_build: (a: number) => void;

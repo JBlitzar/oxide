@@ -122,11 +122,15 @@ pub struct MeshBVHNode {
 pub struct MeshBVH {
     nodes: Vec<MeshBVHNode>,
     triangles: Vec<Triangle>,
-    material: Box<dyn Material>,
+    pub material: Box<dyn Material>,
     root: usize,
 }
 
 impl MeshBVH {
+    pub fn with_material(&self, material: Box<dyn Material>) -> Self {
+        Self::new(self.triangles.clone(), material)
+    }
+
     fn new(triangles: Vec<Triangle>, material: Box<dyn Material>) -> Self {
         let mut bvh = MeshBVH {
             nodes: Vec::new(),

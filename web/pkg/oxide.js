@@ -12,11 +12,124 @@ export class WasmRenderer {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_wasmrenderer_free(ptr, 0);
     }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @param {number} size
+     * @param {number} mat_type
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @param {number} fuzz
+     * @param {number} refractive_index
+     * @returns {number}
+     */
+    add_cube(x, y, z, size, mat_type, r, g, b, fuzz, refractive_index) {
+        const ret = wasm.wasmrenderer_add_cube(this.__wbg_ptr, x, y, z, size, mat_type, r, g, b, fuzz, refractive_index);
+        return ret >>> 0;
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @param {number} radius
+     * @param {number} mat_type
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @param {number} fuzz
+     * @param {number} refractive_index
+     * @returns {number}
+     */
+    add_sphere(x, y, z, radius, mat_type, r, g, b, fuzz, refractive_index) {
+        const ret = wasm.wasmrenderer_add_sphere(this.__wbg_ptr, x, y, z, radius, mat_type, r, g, b, fuzz, refractive_index);
+        return ret >>> 0;
+    }
+    /**
+     * @param {number} index
+     * @returns {Float64Array}
+     */
+    get_object_info(index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrenderer_get_object_info(retptr, this.__wbg_ptr, index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF64FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 8, 8);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
     constructor() {
         const ret = wasm.wasmrenderer_new();
         this.__wbg_ptr = ret >>> 0;
         WasmRendererFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * @returns {number}
+     */
+    object_count() {
+        const ret = wasm.wasmrenderer_object_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @param {number} object_index
+     * @param {number} width
+     * @param {number} height
+     * @param {number} fov
+     * @param {number} cam_x
+     * @param {number} cam_y
+     * @param {number} cam_z
+     * @param {number} target_x
+     * @param {number} target_y
+     * @param {number} target_z
+     * @param {number} focus_distance
+     * @param {number} _aperture
+     * @param {number} radius
+     * @returns {Uint8Array}
+     */
+    outline(object_index, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, focus_distance, _aperture, radius) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrenderer_outline(retptr, this.__wbg_ptr, object_index, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, focus_distance, _aperture, radius);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayU8FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 1, 1);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {number} pixel_x
+     * @param {number} pixel_y
+     * @param {number} width
+     * @param {number} height
+     * @param {number} fov
+     * @param {number} cam_x
+     * @param {number} cam_y
+     * @param {number} cam_z
+     * @param {number} target_x
+     * @param {number} target_y
+     * @param {number} target_z
+     * @param {number} focus_distance
+     * @param {number} _aperture
+     * @returns {number}
+     */
+    pick(pixel_x, pixel_y, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, focus_distance, _aperture) {
+        const ret = wasm.wasmrenderer_pick(this.__wbg_ptr, pixel_x, pixel_y, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, focus_distance, _aperture);
+        return ret;
+    }
+    /**
+     * @param {number} index
+     */
+    remove_object(index) {
+        wasm.wasmrenderer_remove_object(this.__wbg_ptr, index);
     }
     /**
      * @param {number} width
@@ -46,6 +159,83 @@ export class WasmRenderer {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * @param {number} index
+     */
+    set_sky(index) {
+        wasm.wasmrenderer_set_sky(this.__wbg_ptr, index);
+    }
+    /**
+     * @returns {number}
+     */
+    sky_count() {
+        const ret = wasm.wasmrenderer_sky_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @param {number} index
+     * @returns {string}
+     */
+    sky_name(index) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrenderer_sky_name(retptr, this.__wbg_ptr, index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {number} index
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @param {number} size
+     * @param {number} mat_type
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @param {number} fuzz
+     * @param {number} refractive_index
+     */
+    update_cube(index, x, y, z, size, mat_type, r, g, b, fuzz, refractive_index) {
+        wasm.wasmrenderer_update_cube(this.__wbg_ptr, index, x, y, z, size, mat_type, r, g, b, fuzz, refractive_index);
+    }
+    /**
+     * @param {number} index
+     * @param {number} mat_type
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @param {number} fuzz
+     * @param {number} refractive_index
+     */
+    update_mesh_material(index, mat_type, r, g, b, fuzz, refractive_index) {
+        wasm.wasmrenderer_update_mesh_material(this.__wbg_ptr, index, mat_type, r, g, b, fuzz, refractive_index);
+    }
+    /**
+     * @param {number} index
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @param {number} radius
+     * @param {number} mat_type
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @param {number} fuzz
+     * @param {number} refractive_index
+     */
+    update_sphere(index, x, y, z, radius, mat_type, r, g, b, fuzz, refractive_index) {
+        wasm.wasmrenderer_update_sphere(this.__wbg_ptr, index, x, y, z, radius, mat_type, r, g, b, fuzz, refractive_index);
     }
 }
 if (Symbol.dispose) WasmRenderer.prototype[Symbol.dispose] = WasmRenderer.prototype.free;
@@ -159,7 +349,7 @@ function __wbg_get_imports(memory) {
         __wbindgen_object_drop_ref: function(arg0) {
             takeObject(arg0);
         },
-        memory: memory || new WebAssembly.Memory({initial:25,maximum:65536,shared:true}),
+        memory: memory || new WebAssembly.Memory({initial:608,maximum:65536,shared:true}),
     };
     return {
         __proto__: null,
@@ -189,6 +379,11 @@ function dropObject(idx) {
     heap_next = idx;
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
@@ -200,6 +395,14 @@ function getDataViewMemory0() {
         cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
     }
     return cachedDataViewMemory0;
+}
+
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.buffer !== wasm.memory.buffer) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -252,6 +455,7 @@ function __wbg_finalize_init(instance, module, thread_stack_size) {
     wasm = instance.exports;
     wasmModule = module;
     cachedDataViewMemory0 = null;
+    cachedFloat64ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     if (typeof thread_stack_size !== 'undefined' && (typeof thread_stack_size !== 'number' || thread_stack_size === 0 || thread_stack_size % 65536 !== 0)) {
         throw new Error('invalid stack size');

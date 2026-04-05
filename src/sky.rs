@@ -3,6 +3,8 @@ use crate::{
     vec3::{Ray, Vec3},
 };
 use image::ImageReader;
+use std::io::Cursor;
+
 pub trait Sky: Send + Sync {
     fn color(&self, ray: &Ray) -> Vec3;
     fn lights(&self) -> Vec<SphereLight> {
@@ -48,6 +50,28 @@ impl Sky for HDRSky {
     }
 }
 impl HDRSky {
+    pub fn from_hdr_bytes(bytes: &[u8]) -> Self {
+        let img = ImageReader::new(Cursor::new(bytes))
+            .with_guessed_format()
+            .expect("Failed to guess HDR format")
+            .decode()
+            .expect("Failed to decode HDR image")
+            .to_rgb32f();
+        let width = img.width() as usize;
+        let height = img.height() as usize;
+        let data = img
+            .into_raw()
+            .chunks(3)
+            .map(|c| Vec3::new(c[0] as f64, c[1] as f64, c[2] as f64))
+            .collect();
+        HDRSky {
+            data,
+            width,
+            height,
+            exposure: 1.0,
+        }
+    }
+
     pub fn from_hdr_file(path: &str) -> Self {
         let data = ImageReader::open(path)
             .expect("Failed to open HDR file")

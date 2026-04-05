@@ -36,6 +36,7 @@ pub struct World {
     camera: Camera,
     img_buffer: Vec<u8>,
     objects: BVHNode,
+    scene_objects: Vec<Arc<dyn Hittable>>,
     termination_prob: f64,
     samples: usize,
     lights: Vec<SphereLight>,
@@ -60,6 +61,7 @@ impl World {
             camera,
             img_buffer,
             objects: BVHNode::of_objects_and_endpoints(&mut objects.clone()),
+            scene_objects: objects,
             termination_prob: termination_prob.unwrap_or(0.01),
             samples: samples.unwrap_or(20),
             lights: all_lights,
@@ -78,50 +80,41 @@ impl World {
             .pick(&self.camera.get_ray_direction(x, y), f64::INFINITY)
     }
 
-    pub fn outline(&mut self, object: &Arc<dyn Hittable>, radius: usize) -> Vec<u8> {
-        self.mask(object);
-        self.dilate_mask(radius)
-        
+    pub fn pick_index(&self, x: usize, y: usize) -> Option<usize> {
+        let hit = self.pick(x, y)?;
+        self.scene_objects
+            .iter()
+            .position(|obj| Arc::ptr_eq(&hit.object, obj))
     }
 
-    pub fn mask(&mut self, object: &Arc<dyn Hittable>) {
-        let aabb = object.bounding_box().screen_space_aabb(&self.camera);
+    pub fn scene_object(&self, index: usize) -> Option<&Arc<dyn Hittable>> {
+        self.scene_objects.get(index)
+    }
+
+    pub fn outline(&mut self, object: &Arc<dyn Hittable>, radius: usize) -> Vec<u8> {
+        let w = self.camera.width_px;
+        let h = self.camera.height_px;
 
         self.selection_mask.fill(0);
-
-        for y in aabb.2..=aabb.3 {
-            for x in aabb.0..=aabb.1 {
-                let idx = y * self.camera.width_px + x;
-                let obj = self.pick(x, y);
-                if let Some(hit) = obj {
+        for y in 0..h {
+            for x in 0..w {
+                if let Some(hit) = self.pick(x, y) {
                     if Arc::ptr_eq(&hit.object, object) {
-                        self.selection_mask[idx] = 255;
-                    } else {
-                        self.selection_mask[idx] = 0;
+                        self.selection_mask[y * w + x] = 255;
                     }
                 }
             }
         }
-    }
-    pub fn dilate_mask(&self, radius: usize) -> Vec<u8> {
-        let w = self.camera.width_px;
-        let h = self.camera.height_px;
+
         let mut outline = vec![0u8; w * h];
         for y in 0..h {
             for x in 0..w {
                 if self.selection_mask[y * w + x] != 0 {
                     continue;
                 }
-                'search: for dy in -(radius as isize)..=(radius as isize) {
-                    for dx in -(radius as isize)..=(radius as isize) {
-                        let nx = x as isize + dx;
-                        let ny = y as isize + dy;
-                        if nx >= 0
-                            && nx < w as isize
-                            && ny >= 0
-                            && ny < h as isize
-                            && self.selection_mask[ny as usize * w + nx as usize] != 0
-                        {
+                'search: for ny in y.saturating_sub(radius)..=(y + radius).min(h - 1) {
+                    for nx in x.saturating_sub(radius)..=(x + radius).min(w - 1) {
+                        if self.selection_mask[ny * w + nx] != 0 {
                             outline[y * w + x] = 255;
                             break 'search;
                         }

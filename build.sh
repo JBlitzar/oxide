@@ -2,7 +2,7 @@
 set -e
 
 echo "=== Building WASM ==="
-RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals,+simd128 -C link-arg=--shared-memory -C link-arg=--import-memory -C link-arg=--max-memory=4294967296 -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base' \
+RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals,+simd128,+relaxed-simd,+sign-ext -C link-arg=--shared-memory -C link-arg=--import-memory -C link-arg=--max-memory=4294967296 -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base' \
   cargo +nightly build --lib --target wasm32-unknown-unknown --release \
   --no-default-features --features wasm \
   -Z build-std=panic_abort,std
@@ -16,6 +16,10 @@ wasm-opt -O3 \
   --enable-bulk-memory \
   --enable-bulk-memory-opt \
   --enable-nontrapping-float-to-int \
+  --enable-sign-ext \
+  --enable-relaxed-simd \
+  --converge \
+  --gufa \
   --strip-debug \
   --strip-producers \
   -o web/pkg/oxide_bg.wasm \

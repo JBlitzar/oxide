@@ -7,10 +7,14 @@
       * {
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
       }
       body {
         background: #000;
         overflow: hidden;
+        font-family: monospace;
+        font-size: 13px;
+        color: #ccc;
       }
       canvas {
         display: block;
@@ -32,12 +36,213 @@
         color: #fff;
         text-decoration: none;
       }
+
+      /* Sky dropdown */
+      #sky-select {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        border: 1px solid #444;
+        padding: 4px 8px;
+        font-family: monospace;
+        font-size: 13px;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+      }
+      #sky-select option {
+        background: #111;
+        color: #fff;
+      }
+
+      /* Editor panel */
+      #panel {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 260px;
+        height: 100%;
+        background: rgba(10, 10, 10, 0.85);
+        backdrop-filter: blur(8px);
+        border-right: 1px solid #333;
+        z-index: 30;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        overflow-y: auto;
+        padding: 16px;
+      }
+      #panel.open {
+        transform: translateX(0);
+      }
+      #panel h2 {
+        font-size: 14px;
+        color: #fff;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 6px;
+      }
+      #panel label {
+        display: block;
+        margin-top: 10px;
+        margin-bottom: 3px;
+        color: #888;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      #panel select,
+      #panel input[type="number"],
+      #panel input[type="color"],
+      #panel input[type="range"] {
+        width: 100%;
+        background: #1a1a1a;
+        color: #fff;
+        border: 1px solid #333;
+        padding: 4px 6px;
+        font-family: monospace;
+        font-size: 13px;
+      }
+      #panel input[type="color"] {
+        height: 30px;
+        padding: 2px;
+        cursor: pointer;
+      }
+      #panel input[type="range"] {
+        padding: 0;
+      }
+      .field-row {
+        display: flex;
+        gap: 4px;
+      }
+      .field-row input {
+        flex: 1;
+        min-width: 0;
+      }
+      #panel-content {
+        display: none;
+      }
+      #panel-content.active {
+        display: block;
+      }
+
+      .btn {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        padding: 6px;
+        background: #222;
+        color: #fff;
+        border: 1px solid #444;
+        font-family: monospace;
+        font-size: 13px;
+        cursor: pointer;
+        text-align: center;
+      }
+      .btn:hover {
+        background: #333;
+      }
+      .btn-danger {
+        border-color: #633;
+        color: #f88;
+      }
+      .btn-danger:hover {
+        background: #422;
+      }
+
+      #add-object {
+        position: fixed;
+        top: 40px;
+        right: 10px;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        border: 1px solid #444;
+        padding: 4px 8px;
+        font-family: monospace;
+        font-size: 13px;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+      }
+      #add-object option {
+        background: #111;
+        color: #fff;
+      }
+
+      /* Material-specific fields */
+      .mat-field {
+        display: none;
+      }
+      .mat-field.visible {
+        display: block;
+      }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
 
     <div id="info">Loading WASM...</div>
+    <select id="sky-select"></select>
+
+    <!-- Editor panel -->
+    <div id="panel">
+      <h2>Object</h2>
+      <div id="panel-content">
+        <label>Type</label>
+        <select id="obj-type">
+          <option value="sphere">Sphere</option>
+          <option value="cube">Cube</option>
+          <option value="mesh" disabled>Mesh</option>
+        </select>
+
+        <label>Position</label>
+        <div class="field-row">
+          <input type="number" id="pos-x" step="0.1" placeholder="x" />
+          <input type="number" id="pos-y" step="0.1" placeholder="y" />
+          <input type="number" id="pos-z" step="0.1" placeholder="z" />
+        </div>
+
+        <div id="param-radius">
+          <label>Radius</label>
+          <input type="number" id="obj-radius" step="0.1" value="0.7" min="0.01" />
+        </div>
+        <div id="param-size" style="display:none">
+          <label>Size</label>
+          <input type="number" id="obj-size" step="0.1" value="1.0" min="0.01" />
+        </div>
+
+        <label>Material</label>
+        <select id="mat-type">
+          <option value="0">Lambertian</option>
+          <option value="1">Metal</option>
+          <option value="2">Dielectric</option>
+          <option value="3">Diffuse Light</option>
+        </select>
+
+        <label>Color</label>
+        <input type="color" id="mat-color" value="#4d8080" />
+
+        <div class="mat-field" id="field-fuzz">
+          <label>Fuzz</label>
+          <input type="range" id="mat-fuzz" min="0" max="1" step="0.01" value="0" />
+        </div>
+        <div class="mat-field" id="field-ri">
+          <label>Refractive Index</label>
+          <input type="number" id="mat-ri" min="1" max="3" step="0.01" value="1.5" />
+        </div>
+
+        <button class="btn" id="btn-apply">Apply</button>
+        <button class="btn btn-danger" id="btn-delete">Delete</button>
+      </div>
+    </div>
+
+    <select id="add-object">
+      <option value="" selected disabled>Add object...</option>
+      <option value="sphere">+ Sphere</option>
+      <option value="cube">+ Cube</option>
+    </select>
+
     <script type="module" src="index.js"></script>
   </body>
   <script>
