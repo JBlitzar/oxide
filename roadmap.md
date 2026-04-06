@@ -1,4 +1,8 @@
 ## Things to do eventually
 
-add lights
-progressive rendering -> wasm build with mouse to orbit
+Adaptive sampling-- track convergence
+dynamic preview?? benchmark users at runtime
+blue noise sampling
+principled bdsf
+subsurface scattering
+Serious editor capabilities

@@ -1,5 +1,51 @@
 import init, { WasmRenderer, initThreadPool } from "./pkg/oxide.js";
 
+function isSafari(ua, vendor) {
+  if (!vendor || !vendor.includes("Apple")) return false;
+  if (!ua.includes("Safari")) return false;
+  return !/(Chrome|Chromium|Edg|OPR|CriOS|FxiOS)/.test(ua);
+}
+
+function isMobileDevice() {
+  const ua = navigator.userAgent || "";
+  const uad = navigator.userAgentData;
+  if (uad && typeof uad.mobile === "boolean") return uad.mobile;
+  return /(Android|iPhone|iPad|iPod)/i.test(ua);
+}
+
+function blockUnsupported() {
+  const ua = navigator.userAgent || "";
+  const vendor = navigator.vendor || "";
+  const blocked = isMobileDevice() || isSafari(ua, vendor);
+  if (!blocked) return false;
+
+  const gh = "https://github.com/jblitzar/oxide";
+  document.body.innerHTML = "";
+  document.body.style.background = "#000";
+  document.body.style.color = "#fff";
+  document.body.style.overflow = "auto";
+  const wrap = document.createElement("div");
+  wrap.style.maxWidth = "720px";
+  wrap.style.margin = "64px auto";
+  wrap.style.padding = "0 16px";
+  wrap.style.fontFamily = "monospace";
+  wrap.innerHTML = `
+    <h1 style="font-size:18px; margin-bottom:12px;">Unsupported browser</h1>
+    <p style="color:#ccc; line-height:1.5; margin-bottom:12px;">
+      This web demo doesn’t work on mobile or Safari.
+      Please try Chrome or Firefox on desktop.
+    </p>
+    <p><a href="${gh}" target="_blank" rel="noreferrer" style="color:#fff; text-decoration:none;">Visit the GitHub repo</a></p>
+  `;
+  document.body.appendChild(wrap);
+  return true;
+}
+
+if (blockUnsupported()) {
+  // Stop before loading WASM/workers.
+  throw new Error("Unsupported browser");
+}
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const info = document.getElementById("info");
@@ -20,6 +66,8 @@ const APERTURE = 0.04;
 
 const PREVIEW_SCALE = 0.125;
 const OUTLINE_SCALE = 0.125;
+const MAX_RENDER_W = 1920;
+const MAX_RENDER_H = 1080;
 const PASSES = [
   [0.125, 2, 0.1],
   [0.25, 4, 0.1],
@@ -67,6 +115,13 @@ const btnApply = document.getElementById("btn-apply");
 const btnDelete = document.getElementById("btn-delete");
 const addObjectSelect = document.getElementById("add-object");
 
+function renderBaseSize() {
+  return {
+    w: Math.min(canvas.width, MAX_RENDER_W),
+    h: Math.min(canvas.height, MAX_RENDER_H),
+  };
+}
+
 function cameraFromOrbit() {
   const x = target.x + distance * Math.cos(elevation) * Math.sin(azimuth);
   const y = target.y + distance * Math.sin(elevation);
@@ -93,8 +148,9 @@ function safeComputeOutline() {
   cachedOutlineMask = null;
   if (selectedIndex < 0 || !mainRenderer) return;
   try {
-    const ow = Math.max(1, Math.floor(canvas.width * OUTLINE_SCALE));
-    const oh = Math.max(1, Math.floor(canvas.height * OUTLINE_SCALE));
+    const base = renderBaseSize();
+    const ow = Math.max(1, Math.floor(base.w * OUTLINE_SCALE));
+    const oh = Math.max(1, Math.floor(base.h * OUTLINE_SCALE));
     const cp = cameraParams();
     const mask = mainRenderer.outline(
       selectedIndex,
@@ -160,8 +216,9 @@ function displayFrame(rgba, w, h, label) {
 
 function renderPreview() {
   if (!mainRenderer) return;
-  const w = Math.max(1, Math.floor(canvas.width * PREVIEW_SCALE));
-  const h = Math.max(1, Math.floor(canvas.height * PREVIEW_SCALE));
+  const base = renderBaseSize();
+  const w = Math.max(1, Math.floor(base.w * PREVIEW_SCALE));
+  const h = Math.max(1, Math.floor(base.h * PREVIEW_SCALE));
   const cam = cameraFromOrbit();
   const t0 = performance.now();
   const rgba = mainRenderer.render(
@@ -186,8 +243,9 @@ function renderPreview() {
 function sendRender() {
   if (!workerReady || isDragging) return;
   const [scale, samples, termProb] = PASSES[currentPass];
-  const w = Math.max(1, Math.floor(canvas.width * scale));
-  const h = Math.max(1, Math.floor(canvas.height * scale));
+  const base = renderBaseSize();
+  const w = Math.max(1, Math.floor(base.w * scale));
+  const h = Math.max(1, Math.floor(base.h * scale));
   const cam = cameraFromOrbit();
   workerBusy = true;
   qualityWorker.postMessage({
