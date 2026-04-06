@@ -11,6 +11,7 @@ export class WasmRenderer {
     object_count(): number;
     outline(object_index: number, width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, focus_distance: number, _aperture: number, radius: number): Uint8Array;
     pick(pixel_x: number, pixel_y: number, width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, focus_distance: number, _aperture: number): number;
+    pick_distance(pixel_x: number, pixel_y: number, width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number): number;
     remove_object(index: number): void;
     render(width: number, height: number, fov: number, cam_x: number, cam_y: number, cam_z: number, target_x: number, target_y: number, target_z: number, samples: number, termination_prob: number, focus_distance: number, aperture: number): Uint8Array;
     set_sky(index: number): void;
@@ -46,6 +47,7 @@ export interface InitOutput {
     readonly wasmrenderer_object_count: (a: number) => number;
     readonly wasmrenderer_outline: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
     readonly wasmrenderer_pick: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
+    readonly wasmrenderer_pick_distance: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
     readonly wasmrenderer_remove_object: (a: number, b: number) => void;
     readonly wasmrenderer_render: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
     readonly wasmrenderer_set_sky: (a: number, b: number) => void;

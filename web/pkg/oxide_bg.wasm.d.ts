@@ -8,6 +8,7 @@ export const wasmrenderer_new: () => number;
 export const wasmrenderer_object_count: (a: number) => number;
 export const wasmrenderer_outline: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
 export const wasmrenderer_pick: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
+export const wasmrenderer_pick_distance: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
 export const wasmrenderer_remove_object: (a: number, b: number) => void;
 export const wasmrenderer_render: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
 export const wasmrenderer_set_sky: (a: number, b: number) => void;

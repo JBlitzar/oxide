@@ -126,6 +126,24 @@ export class WasmRenderer {
         return ret;
     }
     /**
+     * @param {number} pixel_x
+     * @param {number} pixel_y
+     * @param {number} width
+     * @param {number} height
+     * @param {number} fov
+     * @param {number} cam_x
+     * @param {number} cam_y
+     * @param {number} cam_z
+     * @param {number} target_x
+     * @param {number} target_y
+     * @param {number} target_z
+     * @returns {number}
+     */
+    pick_distance(pixel_x, pixel_y, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z) {
+        const ret = wasm.wasmrenderer_pick_distance(this.__wbg_ptr, pixel_x, pixel_y, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z);
+        return ret;
+    }
+    /**
      * @param {number} index
      */
     remove_object(index) {

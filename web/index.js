@@ -63,6 +63,7 @@ let lastX = 0,
 const FOV = Math.PI / 2;
 const FOCUS_DISTANCE = 10.0;
 const APERTURE = 0.04;
+let focusDistance = FOCUS_DISTANCE;
 
 const PREVIEW_SCALE = 0.125;
 const OUTLINE_SCALE = 0.125;
@@ -139,9 +140,37 @@ function cameraParams() {
     target_x: target.x,
     target_y: target.y,
     target_z: target.z,
-    focus_distance: FOCUS_DISTANCE,
+    focus_distance: focusDistance,
     aperture: APERTURE,
   };
+}
+
+function updateAutofocus(w, h) {
+  if (!mainRenderer) return;
+  const cam = cameraFromOrbit();
+  const midX = Math.floor(w * 0.5);
+  const midY = Math.floor(h * 0.5);
+  let t = -1;
+  try {
+    t = mainRenderer.pick_distance(
+      midX,
+      midY,
+      w,
+      h,
+      FOV,
+      cam.x,
+      cam.y,
+      cam.z,
+      target.x,
+      target.y,
+      target.z,
+    );
+  } catch (_) {
+    return;
+  }
+  if (!(t > 0) || !Number.isFinite(t)) return;
+  if (Math.abs(t - focusDistance) < 0.01) return;
+  focusDistance = t;
 }
 
 function safeComputeOutline() {
@@ -220,6 +249,8 @@ function renderPreview() {
   const w = Math.max(1, Math.floor(base.w * PREVIEW_SCALE));
   const h = Math.max(1, Math.floor(base.h * PREVIEW_SCALE));
   const cam = cameraFromOrbit();
+  updateAutofocus(w, h);
+
   const t0 = performance.now();
   const rgba = mainRenderer.render(
     w,
@@ -233,7 +264,7 @@ function renderPreview() {
     target.z,
     1,
     0.3,
-    FOCUS_DISTANCE,
+    focusDistance,
     APERTURE,
   );
   const dt = performance.now() - t0;
@@ -246,6 +277,9 @@ function sendRender() {
   const base = renderBaseSize();
   const w = Math.max(1, Math.floor(base.w * scale));
   const h = Math.max(1, Math.floor(base.h * scale));
+
+  updateAutofocus(w, h);
+
   const cam = cameraFromOrbit();
   workerBusy = true;
   qualityWorker.postMessage({
@@ -264,7 +298,7 @@ function sendRender() {
       target_z: target.z,
       samples,
       termProb,
-      focus_distance: FOCUS_DISTANCE,
+      focus_distance: focusDistance,
       aperture: APERTURE,
     },
   });

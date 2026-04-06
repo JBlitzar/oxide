@@ -217,6 +217,42 @@ impl WasmRenderer {
         }
     }
 
+    pub fn pick_distance(
+        &self,
+        pixel_x: u32,
+        pixel_y: u32,
+        width: u32,
+        height: u32,
+        fov: f64,
+        cam_x: f64,
+        cam_y: f64,
+        cam_z: f64,
+        target_x: f64,
+        target_y: f64,
+        target_z: f64,
+    ) -> f64 {
+        let camera = Camera::look_at(
+            width as usize,
+            height as usize,
+            fov,
+            Vec3::new(cam_x, cam_y, cam_z),
+            Vec3::new(target_x, target_y, target_z),
+            1.0,
+            0.0,
+        );
+        let world = World::new(
+            camera,
+            self.scene.clone(),
+            Some(1),
+            Some(0.01),
+            Some(self.build_sky()),
+        );
+        world
+            .pick(pixel_x as usize, pixel_y as usize)
+            .map(|h| h.t)
+            .unwrap_or(-1.0)
+    }
+
     pub fn outline(
         &self,
         object_index: u32,
