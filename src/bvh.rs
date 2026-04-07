@@ -253,17 +253,17 @@ impl BVHNode {
     pub fn of_objects_and_endpoints(objects: &mut [Arc<dyn Hittable>]) -> Self {
         // makes it 15% slower, so even though it's supposed to be optimized, it's not for me? empirical data will always win.
 
-        // let mut _box = AABB::new(Vec3::ZERO, Vec3::ZERO);
-        // for o in objects.iter() {
-        //     let obox = o.bounding_box();
-        //     if obox.min == Vec3::ZERO && obox.max == Vec3::ZERO {
-        //         panic!("Object has no bounding box");
-        //     }
-        //     _box = AABB::of_boxes(&_box, &obox);
-        // }
+        let mut _box = AABB::new(Vec3::ZERO, Vec3::ZERO);
+        for o in objects.iter() {
+            let obox = o.bounding_box();
+            if obox.min == Vec3::ZERO && obox.max == Vec3::ZERO {
+                panic!("Object has no bounding box");
+            }
+            _box = AABB::of_boxes(&_box, &obox);
+        }
 
-        // let axis = _box.widest_axis();
-        let axis = fastrand::usize(0..3);
+        let axis = _box.widest_axis();
+        // let axis = fastrand::usize(0..3);
         let comparator =
             |a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>| Self::box_compare(a, b, axis);
 
