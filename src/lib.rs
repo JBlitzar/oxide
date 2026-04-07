@@ -6,6 +6,7 @@ pub mod material;
 pub mod sky;
 pub mod vec3;
 pub mod world;
+pub mod bluenoise;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
