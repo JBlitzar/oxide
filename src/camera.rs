@@ -1,4 +1,4 @@
-use crate::vec3::{Ray, Vec3};
+use crate::{bluenoise::get_pixel_sample, vec3::{Ray, Vec3}};
 
 pub struct Camera {
     pub(crate) width_px: usize,
@@ -44,10 +44,12 @@ impl Camera {
     }
 
     pub fn get_ray_direction(&self, x: usize, y: usize) -> Ray {
+        let (xoff, yoff) = get_pixel_sample(x,y);
+        // let (xoff, yoff) = (fastrand::f64(), fastrand::f64());
         let x_cmp =
-            ((x as f64 + fastrand::f64()) / self.width_px as f64 - 0.5) * self.half_tan_fov_x;
+            ((x as f64 + xoff) / self.width_px as f64 - 0.5) * self.half_tan_fov_x;
         let y_cmp =
-            (0.5 - (y as f64 + fastrand::f64()) / self.height_px as f64) * self.half_tan_fov_y;
+            (0.5 - (y as f64 + yoff) / self.height_px as f64) * self.half_tan_fov_y;
         let dir = self
             .forward
             .add(&self.right.scalar_mul(x_cmp))

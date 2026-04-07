@@ -1,8 +1,7 @@
-use std::num::NonZero;
 use std::sync::Arc;
+use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use oxide::bvh::BVHNode;
 use oxide::camera::Camera;
 use oxide::geometry::Hittable;
 use oxide::geometry::mesh::MeshBVH;
@@ -26,6 +25,7 @@ fn bench_render(c: &mut Criterion) {
                 100,
             );
             world.render();
+            black_box(world.hash_buf());
         })
     });
 }
@@ -33,7 +33,7 @@ fn bench_render(c: &mut Criterion) {
 fn bench_render_cube(c: &mut Criterion) {
     c.bench_function("render cube", |b| {
         b.iter(|| {
-            let mut objects_vec: Vec<Arc<dyn Hittable>> = vec![Arc::new(MeshBVH::build_cube(
+            let objects_vec: Vec<Arc<dyn Hittable>> = vec![Arc::new(MeshBVH::build_cube(
                 Vec3::new(0.0, 0.0, -5.0),
                 1.0,
                 Box::new(Lambertian {
@@ -56,6 +56,41 @@ fn bench_render_cube(c: &mut Criterion) {
                 None,
             );
             world.render();
+            black_box(world.hash_buf());
+        })
+    });
+}
+
+fn bench_render_teapot(c: &mut Criterion) {
+    let teapot: Arc<dyn Hittable> = Arc::new(MeshBVH::from_stl(
+        "teapot_fixed.stl",
+        Box::new(Lambertian {
+            albedo: Vec3::new(0.7, 0.7, 0.7),
+        }),
+        Some(2.0),
+        Some(Vec3::new(0.0, 0.0, -5.0)),
+        None,
+    ));
+
+    c.bench_function("render teapot", |b| {
+        b.iter(|| {
+            let mut world = World::new(
+                Camera::look_at(
+                    320,
+                    240,
+                    90.0_f64.to_radians(),
+                    Vec3::new(0.0, 2.0, 0.0),
+                    Vec3::new(0.0, 0.0, -5.0),
+                    5.385,
+                    0.04,
+                ),
+                vec![teapot.clone()],
+                Some(20),
+                Some(0.1),
+                None,
+            );
+            world.render();
+            black_box(world.hash_buf());
         })
     });
 }
@@ -70,4 +105,9 @@ criterion_group! {
     config = Criterion::default().sample_size(50);
     targets = bench_render_cube
 }
-criterion_main!(benches, cube_bench);
+criterion_group! {
+    name = teapot_bench;
+    config = Criterion::default().sample_size(50);
+    targets = bench_render_teapot
+}
+criterion_main!(benches, cube_bench, teapot_bench);
