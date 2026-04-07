@@ -1,3 +1,4 @@
+mod bluenoise;
 mod bvh;
 mod camera;
 mod geometry;
@@ -6,7 +7,6 @@ mod material;
 mod sky;
 mod vec3;
 mod world;
-mod bluenoise;
 
 use std::sync::Arc;
 
