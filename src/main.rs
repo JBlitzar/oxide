@@ -6,6 +6,7 @@ mod light;
 mod material;
 mod sky;
 mod vec3;
+mod renderer;
 mod world;
 mod aabb;
 
@@ -21,6 +22,7 @@ use crate::camera::Camera;
 use crate::geometry::mesh::MeshBVH;
 use crate::material::Lambertian;
 use crate::vec3::Vec3;
+use crate::renderer::Renderer;
 use crate::world::World;
 
 fn main() {
@@ -98,7 +100,7 @@ fn main() {
     ];
     // let objects = BVHNode::of_objects_and_endpoints(&mut objects);
 
-    let mut world = World::new(
+    let world = World::new(
         Camera::look_at(
             width,
             height,
@@ -109,19 +111,18 @@ fn main() {
             0.04,
         ),
         objects,
-        Some(samples),
-        Some(roulette),
         Some(Box::new({
             let mut sky = HDRSky::from_hdr_file("web/res/citrus_orchard_road_puresky_4k.hdr");
             sky.exposure = 0.3;
             sky
         })),
     );
+    let mut renderer = Renderer::new(width, height, Some(samples), Some(roulette));
     let start = std::time::Instant::now();
-    world.render();
+    renderer.render(&world);
     println!("Render time: {:?}", start.elapsed());
-    world.save_image("output.png");
-    println!("Image hash: {:x}", world.hash_buf());
+    renderer.save_image("output.png");
+    println!("Image hash: {:x}", renderer.hash_buf());
 }
 
 #[cfg(test)]

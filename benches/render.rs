@@ -7,12 +7,13 @@ use oxide::geometry::Hittable;
 use oxide::geometry::mesh::MeshBVH;
 use oxide::material::Lambertian;
 use oxide::vec3::Vec3;
+use oxide::renderer::Renderer;
 use oxide::world::World;
 
 fn bench_render(c: &mut Criterion) {
     c.bench_function("render balls", |b| {
         b.iter(|| {
-            let mut world = World::new_random_spheres(
+            let world = World::new_random_spheres(
                 Camera::look_at(
                     320,
                     240,
@@ -24,8 +25,9 @@ fn bench_render(c: &mut Criterion) {
                 ),
                 100,
             );
-            world.render();
-            black_box(world.hash_buf());
+            let mut renderer = Renderer::new(320, 240, None, None);
+            renderer.render(&world);
+            black_box(renderer.hash_buf());
         })
     });
 }
@@ -40,7 +42,7 @@ fn bench_render_cube(c: &mut Criterion) {
                     albedo: Vec3::new(0.5, 0.5, 0.5),
                 }),
             ))];
-            let mut world = World::new(
+            let world = World::new(
                 Camera::look_at(
                     320,
                     240,
@@ -51,12 +53,11 @@ fn bench_render_cube(c: &mut Criterion) {
                     0.04,
                 ),
                 objects_vec,
-                Some(20),
-                Some(0.1),
                 None,
             );
-            world.render();
-            black_box(world.hash_buf());
+            let mut renderer = Renderer::new(320, 240, Some(20), Some(0.1));
+            renderer.render(&world);
+            black_box(renderer.hash_buf());
         })
     });
 }
@@ -74,7 +75,7 @@ fn bench_render_teapot(c: &mut Criterion) {
 
     c.bench_function("render teapot", |b| {
         b.iter(|| {
-            let mut world = World::new(
+            let world = World::new(
                 Camera::look_at(
                     320,
                     240,
@@ -85,12 +86,11 @@ fn bench_render_teapot(c: &mut Criterion) {
                     0.04,
                 ),
                 vec![teapot.clone()],
-                Some(20),
-                Some(0.1),
                 None,
             );
-            world.render();
-            black_box(world.hash_buf());
+            let mut renderer = Renderer::new(320, 240, Some(20), Some(0.1));
+            renderer.render(&world);
+            black_box(renderer.hash_buf());
         })
     });
 }

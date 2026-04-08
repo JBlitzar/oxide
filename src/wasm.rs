@@ -6,6 +6,7 @@ use crate::material::DiffuseLight;
 use crate::material::{Checkerboard, Dielectric, Lambertian, Material, Metal};
 use crate::sky::{GradientSky, HDRSky, Sky, SolidColorSky};
 use crate::vec3::Vec3;
+use crate::renderer::Renderer;
 use crate::world::World;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -207,8 +208,6 @@ impl WasmRenderer {
         let world = World::new(
             camera,
             self.scene.clone(),
-            Some(1),
-            Some(0.01),
             Some(self.build_sky()),
         );
         match world.pick_index(pixel_x as usize, pixel_y as usize) {
@@ -243,8 +242,6 @@ impl WasmRenderer {
         let world = World::new(
             camera,
             self.scene.clone(),
-            Some(1),
-            Some(0.01),
             Some(self.build_sky()),
         );
         world
@@ -285,8 +282,6 @@ impl WasmRenderer {
         let mut world = World::new(
             camera,
             self.scene.clone(),
-            Some(1),
-            Some(0.01),
             Some(self.build_sky()),
         );
         let obj = world.scene_object(idx).cloned();
@@ -483,15 +478,19 @@ impl WasmRenderer {
             focus_distance,
             aperture,
         );
-        let mut world = World::new(
+        let world = World::new(
             camera,
             self.scene.clone(),
-            Some(samples as usize),
-            Some(termination_prob),
             Some(self.build_sky()),
         );
-        world.render();
-        world.take_buffer_rgba()
+        let mut renderer = Renderer::new(
+            width as usize,
+            height as usize,
+            Some(samples as usize),
+            Some(termination_prob),
+        );
+        renderer.render(&world);
+        renderer.take_buffer_rgba()
     }
 }
 
