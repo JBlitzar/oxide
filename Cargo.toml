@@ -25,7 +25,6 @@ stl_io = "0.11.0"
 image = "0.25.9"
 
 
-rand = { version = "0.10.0", optional = true }
 
 
 wasm-bindgen = { version = "0.2", optional = true }
