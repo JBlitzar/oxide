@@ -2,10 +2,11 @@ use crate::camera::Camera;
 use crate::geometry::Hittable;
 use crate::geometry::mesh::MeshBVH;
 use crate::renderer::Renderer;
-use crate::scene::{MaterialDesc, ObjectDesc, SkyDesc};
+use crate::scene::{MaterialDesc, ObjectDesc, SceneDescription, SkyDesc};
 use crate::sky::{HDRSky, Sky};
 use crate::vec3::Vec3;
 use crate::world::World;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
@@ -47,7 +48,7 @@ const SKY_TABLE: &[SkyEntry] = &[
     },
 ];
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 enum ObjectKind {
     Sphere,
     Cube,
@@ -314,16 +315,7 @@ impl WasmRenderer {
             ObjectDesc::Mesh {
                 vertices, material, ..
             } => {
-                let mut small = Vec3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
-                let mut big = Vec3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
-                for v in vertices {
-                    small.x = small.x.min(v.x);
-                    small.y = small.y.min(v.y);
-                    small.z = small.z.min(v.z);
-                    big.x = big.x.max(v.x);
-                    big.y = big.y.max(v.y);
-                    big.z = big.z.max(v.z);
-                }
+                let (small, big) = Self::mesh_bounds(vertices);
                 let cx = (small.x + big.x) * 0.5;
                 let cy = (small.y + big.y) * 0.5;
                 let cz = (small.z + big.z) * 0.5;
@@ -468,6 +460,74 @@ impl WasmRenderer {
         }
     }
 
+    pub fn update_mesh(
+        &mut self,
+        index: u32,
+        new_cx: f64,
+        new_cy: f64,
+        new_cz: f64,
+        new_size: f64,
+        mat_type: u32,
+        r: f64,
+        g: f64,
+        b: f64,
+        fuzz: f64,
+        refractive_index: f64,
+    ) {
+        let idx = index as usize;
+        if idx >= self.objects.len() {
+            return;
+        }
+        if let ObjectDesc::Mesh {
+            ref mut vertices,
+            ref mut material,
+            ..
+        } = self.objects[idx]
+        {
+            let (small, big) = Self::mesh_bounds(vertices);
+            let cx = (small.x + big.x) * 0.5;
+            let cy = (small.y + big.y) * 0.5;
+            let cz = (small.z + big.z) * 0.5;
+            let cur_size = (big.x - small.x).max(big.y - small.y).max(big.z - small.z);
+            let scale = if cur_size > 1e-12 && new_size > 0.0 {
+                new_size / cur_size
+            } else {
+                1.0
+            };
+            for v in vertices.iter_mut() {
+                v.x = (v.x - cx) * scale + new_cx;
+                v.y = (v.y - cy) * scale + new_cy;
+                v.z = (v.z - cz) * scale + new_cz;
+            }
+            *material = Self::make_material_desc(mat_type, r, g, b, fuzz, refractive_index);
+        }
+    }
+
+    pub fn add_mesh_stl(
+        &mut self,
+        stl_bytes: &[u8],
+        x: f64,
+        y: f64,
+        z: f64,
+        size: f64,
+        mat_type: u32,
+        r: f64,
+        g: f64,
+        b: f64,
+        fuzz: f64,
+        refractive_index: f64,
+    ) -> u32 {
+        let (vertices, faces) =
+            MeshBVH::load_stl_bytes_indexed(stl_bytes, Some(size), Some(Vec3::new(x, y, z)), None);
+        self.objects.push(ObjectDesc::Mesh {
+            vertices,
+            faces,
+            material: Self::make_material_desc(mat_type, r, g, b, fuzz, refractive_index),
+        });
+        self.kinds.push(ObjectKind::Mesh);
+        (self.objects.len() - 1) as u32
+    }
+
     pub fn render(
         &self,
         width: u32,
@@ -503,9 +563,71 @@ impl WasmRenderer {
         renderer.render(&world);
         renderer.take_buffer_rgba()
     }
+
+    pub fn snapshot(&self) -> Vec<u8> {
+        bincode::serialize(&(&self.objects, &self.kinds, &self.sky)).expect("snapshot serialize")
+    }
+
+    pub fn restore(&mut self, bytes: &[u8]) {
+        let (objects, kinds, sky): (Vec<ObjectDesc>, Vec<ObjectKind>, SkyDesc) =
+            bincode::deserialize(bytes).expect("snapshot deserialize");
+        self.objects = objects;
+        self.kinds = kinds;
+        self.sky = sky;
+        self.hdr_sky = None;
+    }
+
+    pub fn export_scene(
+        &self,
+        width: u32,
+        height: u32,
+        fov: f64,
+        cam_x: f64,
+        cam_y: f64,
+        cam_z: f64,
+        target_x: f64,
+        target_y: f64,
+        target_z: f64,
+        focus_distance: f64,
+        aperture: f64,
+        samples: u32,
+        termination_prob: f64,
+    ) -> Vec<u8> {
+        let camera = Camera::look_at(
+            width as usize,
+            height as usize,
+            fov,
+            Vec3::new(cam_x, cam_y, cam_z),
+            Vec3::new(target_x, target_y, target_z),
+            focus_distance,
+            aperture,
+        );
+        let scene = SceneDescription {
+            camera,
+            objects: self.objects.clone(),
+            sky: self.sky.clone(),
+            samples: samples as usize,
+            termination_prob,
+        };
+        scene.to_bytes()
+    }
 }
 
 impl WasmRenderer {
+    fn mesh_bounds(vertices: &[Vec3]) -> (Vec3, Vec3) {
+        let mut small = Vec3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
+        let mut big = Vec3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+        for v in vertices {
+            small.x = small.x.min(v.x);
+            small.y = small.y.min(v.y);
+            small.z = small.z.min(v.z);
+            big.x = big.x.max(v.x);
+            big.y = big.y.max(v.y);
+            big.z = big.z.max(v.z);
+        }
+        (small, big)
+    }
+
     fn read_material_desc(mat: &MaterialDesc) -> (f64, Vec3, f64, f64) {
         match mat {
             MaterialDesc::Lambertian { albedo } => (0.0, *albedo, 0.0, 0.0),

@@ -30,6 +30,26 @@ export class WasmRenderer {
         return ret >>> 0;
     }
     /**
+     * @param {Uint8Array} stl_bytes
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @param {number} size
+     * @param {number} mat_type
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @param {number} fuzz
+     * @param {number} refractive_index
+     * @returns {number}
+     */
+    add_mesh_stl(stl_bytes, x, y, z, size, mat_type, r, g, b, fuzz, refractive_index) {
+        const ptr0 = passArray8ToWasm0(stl_bytes, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmrenderer_add_mesh_stl(this.__wbg_ptr, ptr0, len0, x, y, z, size, mat_type, r, g, b, fuzz, refractive_index);
+        return ret >>> 0;
+    }
+    /**
      * @param {number} x
      * @param {number} y
      * @param {number} z
@@ -47,6 +67,35 @@ export class WasmRenderer {
         return ret >>> 0;
     }
     /**
+     * @param {number} width
+     * @param {number} height
+     * @param {number} fov
+     * @param {number} cam_x
+     * @param {number} cam_y
+     * @param {number} cam_z
+     * @param {number} target_x
+     * @param {number} target_y
+     * @param {number} target_z
+     * @param {number} focus_distance
+     * @param {number} aperture
+     * @param {number} samples
+     * @param {number} termination_prob
+     * @returns {Uint8Array}
+     */
+    export_scene(width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, focus_distance, aperture, samples, termination_prob) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrenderer_export_scene(retptr, this.__wbg_ptr, width, height, fov, cam_x, cam_y, cam_z, target_x, target_y, target_z, focus_distance, aperture, samples, termination_prob);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayU8FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export2(r0, r1 * 1, 1);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * @param {number} index
      * @returns {Float64Array}
      */
@@ -57,7 +106,7 @@ export class WasmRenderer {
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var v1 = getArrayF64FromWasm0(r0, r1).slice();
-            wasm.__wbindgen_export(r0, r1 * 8, 8);
+            wasm.__wbindgen_export2(r0, r1 * 8, 8);
             return v1;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
@@ -99,7 +148,7 @@ export class WasmRenderer {
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var v1 = getArrayU8FromWasm0(r0, r1).slice();
-            wasm.__wbindgen_export(r0, r1 * 1, 1);
+            wasm.__wbindgen_export2(r0, r1 * 1, 1);
             return v1;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
@@ -172,11 +221,19 @@ export class WasmRenderer {
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var v1 = getArrayU8FromWasm0(r0, r1).slice();
-            wasm.__wbindgen_export(r0, r1 * 1, 1);
+            wasm.__wbindgen_export2(r0, r1 * 1, 1);
             return v1;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * @param {Uint8Array} bytes
+     */
+    restore(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.wasmrenderer_restore(this.__wbg_ptr, ptr0, len0);
     }
     /**
      * @param {number} index
@@ -188,7 +245,7 @@ export class WasmRenderer {
      * @param {Uint8Array} bytes
      */
     set_sky_hdr_bytes(bytes) {
-        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export2);
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
         const len0 = WASM_VECTOR_LEN;
         wasm.wasmrenderer_set_sky_hdr_bytes(this.__wbg_ptr, ptr0, len0);
     }
@@ -216,7 +273,23 @@ export class WasmRenderer {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export2(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {Uint8Array}
+     */
+    snapshot() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrenderer_snapshot(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayU8FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export2(r0, r1 * 1, 1);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
     /**
@@ -234,6 +307,22 @@ export class WasmRenderer {
      */
     update_cube(index, x, y, z, size, mat_type, r, g, b, fuzz, refractive_index) {
         wasm.wasmrenderer_update_cube(this.__wbg_ptr, index, x, y, z, size, mat_type, r, g, b, fuzz, refractive_index);
+    }
+    /**
+     * @param {number} index
+     * @param {number} new_cx
+     * @param {number} new_cy
+     * @param {number} new_cz
+     * @param {number} new_size
+     * @param {number} mat_type
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @param {number} fuzz
+     * @param {number} refractive_index
+     */
+    update_mesh(index, new_cx, new_cy, new_cz, new_size, mat_type, r, g, b, fuzz, refractive_index) {
+        wasm.wasmrenderer_update_mesh(this.__wbg_ptr, index, new_cx, new_cy, new_cz, new_size, mat_type, r, g, b, fuzz, refractive_index);
     }
     /**
      * @param {number} index

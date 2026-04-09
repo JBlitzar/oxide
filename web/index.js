@@ -84,7 +84,7 @@ let workerReady = false;
 let workerBusy = false;
 let currentToken = 0;
 let currentPass = 0;
-let mutationLog = [];
+let lastHdrBytes = null;
 const workerUrl = new URL("./render-worker.js", import.meta.url);
 
 let spareWorker = null;
@@ -110,6 +110,7 @@ const fieldRI = document.getElementById("field-ri");
 const btnApply = document.getElementById("btn-apply");
 const btnDelete = document.getElementById("btn-delete");
 const addObjectSelect = document.getElementById("add-object");
+const stlUpload = document.getElementById("stl-upload");
 
 function renderBaseSize() {
   return {
@@ -335,9 +336,17 @@ function onWorkerMessage(e) {
 }
 
 function sendWorkerMessage(msg) {
-  mutationLog.push(msg);
   if (qualityWorker) qualityWorker.postMessage(msg);
   if (spareWorker) spareWorker.postMessage(msg);
+}
+
+function syncWorkerState(worker) {
+  if (!mainRenderer) return;
+  const snap = mainRenderer.snapshot();
+  worker.postMessage({ type: "restore", bytes: snap });
+  if (lastHdrBytes) {
+    worker.postMessage({ type: "set_sky_hdr_bytes", bytes: lastHdrBytes });
+  }
 }
 
 function invalidateAndKick() {
@@ -357,9 +366,11 @@ function warmSpare() {
   spareReady = false;
   spareWorker = new Worker(workerUrl, { type: "module" });
   spareWorker.onmessage = (e) => {
-    if (e.data.type === "ready") spareReady = true;
+    if (e.data.type === "ready") {
+      syncWorkerState(spareWorker);
+      spareReady = true;
+    }
   };
-  for (const msg of mutationLog) spareWorker.postMessage(msg);
 }
 
 function spawnWorker() {
@@ -377,8 +388,14 @@ function spawnWorker() {
     workerReady = false;
     workerBusy = false;
     qualityWorker = new Worker(workerUrl, { type: "module" });
-    qualityWorker.onmessage = onWorkerMessage;
-    for (const msg of mutationLog) qualityWorker.postMessage(msg);
+    qualityWorker.onmessage = (e) => {
+      if (e.data.type === "ready") {
+        syncWorkerState(qualityWorker);
+        qualityWorker.onmessage = onWorkerMessage;
+        workerReady = true;
+        if (!isDragging) kick();
+      }
+    };
   }
 }
 
@@ -421,12 +438,14 @@ skySelect.addEventListener("change", async () => {
   if (val.startsWith("builtin:")) {
     const idx = parseInt(val.split(":")[1]);
     mainRenderer.set_sky(idx);
+    lastHdrBytes = null;
     sendWorkerMessage({ type: "set_sky", index: idx });
     fullRerender();
   } else if (val.startsWith("hdr:")) {
     const url = val.split(":").slice(1).join(":");
     const bytes = await loadHdrSky(url);
     mainRenderer.set_sky_hdr_bytes(bytes);
+    lastHdrBytes = bytes;
     sendWorkerMessage({ type: "set_sky_hdr_bytes", bytes });
     fullRerender();
   }
@@ -546,10 +565,15 @@ btnApply.addEventListener("click", () => {
       ri,
     });
   } else {
-    mainRenderer.update_mesh_material(selectedIndex, mt, r, g, b, fuzz, ri);
+    const size = parseFloat(objSize.value) || 1.0;
+    mainRenderer.update_mesh(selectedIndex, x, y, z, size, mt, r, g, b, fuzz, ri);
     sendWorkerMessage({
-      type: "update_mesh_material",
+      type: "update_mesh",
       index: selectedIndex,
+      x,
+      y,
+      z,
+      size,
       mat_type: mt,
       r,
       g,
@@ -610,9 +634,43 @@ addObjectSelect.addEventListener("change", () => {
       fuzz: 0,
       ri: 1.5,
     });
+  } else if (val === "stl") {
+    stlUpload.click();
+    return;
   } else {
     return;
   }
+  selectedIndex = idx;
+  panel.classList.add("open");
+  panelContent.classList.add("active");
+  loadObjectToPanel(idx);
+  fullRerender();
+  safeComputeOutline();
+});
+
+stlUpload.addEventListener("change", async () => {
+  const file = stlUpload.files[0];
+  stlUpload.value = "";
+  if (!file || !mainRenderer) return;
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const x = 0;
+  const y = 1.0;
+  const z = -5;
+  const idx = mainRenderer.add_mesh_stl(buf, x, y, z, 2.0, 0, 0.5, 0.5, 0.8, 0, 1.5);
+  sendWorkerMessage({
+    type: "add_mesh_stl",
+    bytes: buf,
+    x,
+    y,
+    z,
+    size: 2.0,
+    mat_type: 0,
+    r: 0.5,
+    g: 0.5,
+    b: 0.8,
+    fuzz: 0,
+    ri: 1.5,
+  });
   selectedIndex = idx;
   panel.classList.add("open");
   panelContent.classList.add("active");
@@ -641,8 +699,9 @@ function loadObjectToPanel(index) {
     paramSize.style.display = "none";
   } else if (isMesh) {
     objType.value = "mesh";
+    objSize.value = nfo[4].toFixed(2);
     paramRadius.style.display = "none";
-    paramSize.style.display = "none";
+    paramSize.style.display = "block";
   } else {
     objType.value = "cube";
     objSize.value = nfo[4].toFixed(2);
@@ -651,15 +710,9 @@ function loadObjectToPanel(index) {
   }
 
   objType.disabled = isMesh;
-  posX.disabled = isMesh;
-  posY.disabled = isMesh;
-  posZ.disabled = isMesh;
-  if (!isMesh) {
-    objType.disabled = false;
-    posX.disabled = false;
-    posY.disabled = false;
-    posZ.disabled = false;
-  }
+  posX.disabled = false;
+  posY.disabled = false;
+  posZ.disabled = false;
 
   matType.value = String(Math.round(nfo[5]));
   matColor.value = rgbToHex(nfo[6], nfo[7], nfo[8]);
@@ -751,6 +804,79 @@ canvas.addEventListener(
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") deselect();
 });
+
+const downloadBtn = document.getElementById("download-scene");
+const toast = document.getElementById("toast");
+const toastContent = document.getElementById("toast-content");
+const toastClose = document.getElementById("toast-close");
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const prev = btn.textContent;
+    btn.textContent = "ok";
+    setTimeout(() => (btn.textContent = prev), 1000);
+  });
+}
+
+function showExportToast() {
+  const isWin = navigator.platform.indexOf("Win") > -1;
+  const cdCmd = isWin ? "cd %USERPROFILE%\\Downloads" : "cd ~/Downloads";
+  const steps = [
+    { label: "Install", cmd: "cargo install hydroxide" },
+    { label: "Navigate", cmd: cdCmd },
+    {
+      label: "Render",
+      cmd: "hydroxide --scene exported.scene -s 1000 --width 1920 --height 1080",
+    },
+  ];
+  toastContent.innerHTML =
+    "<div style='color:#fff;margin-bottom:6px'>Scene downloaded!</div>";
+  for (const s of steps) {
+    const row = document.createElement("div");
+    row.className = "toast-step";
+    const code = document.createElement("code");
+    code.textContent = s.cmd;
+    code.title = s.cmd;
+    const btn = document.createElement("button");
+    btn.className = "toast-copy";
+    btn.textContent = "copy";
+    btn.addEventListener("click", () => copyText(s.cmd, btn));
+    row.appendChild(code);
+    row.appendChild(btn);
+    toastContent.appendChild(row);
+  }
+  toast.classList.remove("hidden");
+}
+
+downloadBtn.addEventListener("click", () => {
+  if (!mainRenderer) return;
+  const cam = cameraFromOrbit();
+  const bytes = mainRenderer.export_scene(
+    1920,
+    1080,
+    FOV,
+    cam.x,
+    cam.y,
+    cam.z,
+    target.x,
+    target.y,
+    target.z,
+    focusDistance,
+    APERTURE,
+    500,
+    0.01,
+  );
+  const blob = new Blob([bytes], { type: "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "exported.scene";
+  a.click();
+  URL.revokeObjectURL(url);
+  showExportToast();
+});
+
+toastClose.addEventListener("click", () => toast.classList.add("hidden"));
 
 async function main() {
   await init();

@@ -148,6 +148,7 @@ fn main() {
     scene.save(&args.scene);
     println!("Scene saved to {}", args.scene);
     println!("Image saved to {}", args.output);
+    open::that(&args.output).unwrap();
 }
 
 #[cfg(test)]
