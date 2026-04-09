@@ -3,8 +3,16 @@ name = "hydroxide"
 version = "0.1.0"
 edition = "2024"
 description = "CPU path tracer written in Rust"
-license = "GNU GPLv3"
+license = "GPL-3.0-only"
 repository = "https://github.com/JBlitzar/hydroxide"
+include = [
+    "src/**/*.rs",
+    "benches/**/*.rs",
+    "build.rs",
+    "Cargo.toml",
+    "LICENSE",
+    "README.md",
+]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
