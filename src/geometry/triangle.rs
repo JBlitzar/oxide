@@ -3,8 +3,9 @@ use crate::{
     vec3::{Ray, Vec3},
 };
 
-use serde::{Deserialize, Serialize};
-#[derive(Serialize, Deserialize, Clone)]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+#[derive(Clone)]
 pub struct Triangle {
     pub(crate) v0: Vec3,
     pub(crate) v1: Vec3,
@@ -15,6 +16,44 @@ pub struct Triangle {
     pub n2: Vec3,
     pub e01: Vec3,
     pub e02: Vec3,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TriangleSerde {
+    v0: Vec3,
+    v1: Vec3,
+    v2: Vec3,
+    n0: Vec3,
+    n1: Vec3,
+    n2: Vec3,
+}
+
+impl Serialize for Triangle {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        TriangleSerde {
+            v0: self.v0,
+            v1: self.v1,
+            v2: self.v2,
+            n0: self.n0,
+            n1: self.n1,
+            n2: self.n2,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Triangle {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = TriangleSerde::deserialize(deserializer)?;
+        Ok(Triangle::new_with_normals(
+            s.v0,
+            s.v1,
+            s.v2,
+            Some(s.n0),
+            Some(s.n1),
+            Some(s.n2),
+        ))
+    }
 }
 
 impl Triangle {

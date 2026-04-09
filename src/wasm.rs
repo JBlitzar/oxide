@@ -1,11 +1,9 @@
 use crate::camera::Camera;
 use crate::geometry::Hittable;
 use crate::geometry::mesh::MeshBVH;
-use crate::geometry::*;
-use crate::material::DiffuseLight;
-use crate::material::{Checkerboard, Dielectric, Lambertian, Material, Metal};
 use crate::renderer::Renderer;
-use crate::sky::{GradientSky, HDRSky, Sky, SolidColorSky};
+use crate::scene::{MaterialDesc, ObjectDesc, SkyDesc};
+use crate::sky::{HDRSky, Sky};
 use crate::vec3::Vec3;
 use crate::world::World;
 use std::sync::Arc;
@@ -15,51 +13,36 @@ pub use wasm_bindgen_rayon::init_thread_pool;
 
 static TEAPOT_STL: &[u8] = include_bytes!("../teapot_fixed.stl");
 
-struct ArcSky(Arc<HDRSky>);
-impl Sky for ArcSky {
-    fn color(&self, ray: &crate::vec3::Ray) -> Vec3 {
-        self.0.color(ray)
-    }
-}
-
 struct SkyEntry {
     name: &'static str,
-    build: fn() -> Box<dyn Sky>,
+    build: fn() -> SkyDesc,
 }
 
 const SKY_TABLE: &[SkyEntry] = &[
     SkyEntry {
         name: "Gradient (default)",
-        build: || {
-            Box::new(GradientSky {
-                top_color: Vec3::new(0.87, 0.92, 1.0),
-                bottom_color: Vec3::new(1.0, 1.0, 1.0),
-            })
+        build: || SkyDesc::Gradient {
+            top: Vec3::new(0.87, 0.92, 1.0),
+            bottom: Vec3::new(1.0, 1.0, 1.0),
         },
     },
     SkyEntry {
         name: "Sunset Gradient",
-        build: || {
-            Box::new(GradientSky {
-                top_color: Vec3::new(0.1, 0.1, 0.4),
-                bottom_color: Vec3::new(1.0, 0.4, 0.1),
-            })
+        build: || SkyDesc::Gradient {
+            top: Vec3::new(0.1, 0.1, 0.4),
+            bottom: Vec3::new(1.0, 0.4, 0.1),
         },
     },
     SkyEntry {
         name: "Solid Black",
-        build: || {
-            Box::new(SolidColorSky {
-                color: Vec3::new(0.0, 0.0, 0.0),
-            })
+        build: || SkyDesc::Solid {
+            color: Vec3::new(0.0, 0.0, 0.0),
         },
     },
     SkyEntry {
         name: "Solid White",
-        build: || {
-            Box::new(SolidColorSky {
-                color: Vec3::new(1.0, 1.0, 1.0),
-            })
+        build: || SkyDesc::Solid {
+            color: Vec3::new(1.0, 1.0, 1.0),
         },
     },
 ];
@@ -72,11 +55,18 @@ enum ObjectKind {
     Ground,
 }
 
+struct ArcSky(Arc<HDRSky>);
+impl Sky for ArcSky {
+    fn color(&self, ray: &crate::vec3::Ray) -> Vec3 {
+        self.0.color(ray)
+    }
+}
+
 #[wasm_bindgen]
 pub struct WasmRenderer {
-    scene: Vec<Arc<dyn Hittable>>,
+    objects: Vec<ObjectDesc>,
     kinds: Vec<ObjectKind>,
-    sky_index: usize,
+    sky: SkyDesc,
     hdr_sky: Option<Arc<HDRSky>>,
 }
 
@@ -85,55 +75,64 @@ impl WasmRenderer {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         fastrand::seed(42);
-        let objects: Vec<Arc<dyn Hittable>> = vec![
-            Arc::new(MeshBVH::from_stl_bytes(
-                TEAPOT_STL,
-                Box::new(Dielectric {
-                    albedo: Vec3::new(1.0, 1.0, 1.0),
-                    refractive_index: 1.7,
-                }),
-                Some(2.0),
-                Some(Vec3::new(-2.0, 0.0, -5.0)),
-                None,
-            )),
-            Arc::new(sphere::Sphere {
+        let objects = vec![
+            {
+                let (vertices, faces) = MeshBVH::load_stl_bytes_indexed(
+                    TEAPOT_STL,
+                    Some(2.0),
+                    Some(Vec3::new(-2.0, 0.0, -5.0)),
+                    None,
+                );
+                ObjectDesc::Mesh {
+                    vertices,
+                    faces,
+                    material: MaterialDesc::Dielectric {
+                        albedo: Vec3::new(1.0, 1.0, 1.0),
+                        refractive_index: 1.7,
+                    },
+                }
+            },
+            ObjectDesc::Sphere {
                 center: Vec3::new(2.0, 5.0, -5.0),
                 radius: 2.0,
-                material: Box::new(DiffuseLight {
+                material: MaterialDesc::DiffuseLight {
                     albedo: Vec3::new(3.0, 0.3, 0.3),
-                }),
-            }),
-            Arc::new(sphere::Sphere {
+                },
+            },
+            ObjectDesc::Sphere {
                 center: Vec3::new(-2.0, 5.0, -5.0),
                 radius: 2.0,
-                material: Box::new(DiffuseLight {
+                material: MaterialDesc::DiffuseLight {
                     albedo: Vec3::new(0.05, 3.0, 0.3),
-                }),
-            }),
-            Arc::new(sphere::Sphere {
+                },
+            },
+            ObjectDesc::Sphere {
                 center: Vec3::new(0.0, 0.7, -5.0),
                 radius: 0.7,
-                material: Box::new(Metal {
+                material: MaterialDesc::Metal {
                     albedo: Vec3::new(0.8, 0.8, 0.8),
                     fuzz: 0.0,
-                }),
-            }),
-            Arc::new(MeshBVH::build_cube(
-                Vec3::new(2.0, 0.5, -5.0),
-                1.0,
-                Box::new(Lambertian {
-                    albedo: Vec3::new(0.2, 0.5, 0.5),
-                }),
-            )),
-            Arc::new(sphere::Sphere {
+                },
+            },
+            {
+                let (vertices, faces) = MeshBVH::cube_indexed(Vec3::new(2.0, 0.5, -5.0), 1.0);
+                ObjectDesc::Mesh {
+                    vertices,
+                    faces,
+                    material: MaterialDesc::Lambertian {
+                        albedo: Vec3::new(0.2, 0.5, 0.5),
+                    },
+                }
+            },
+            ObjectDesc::Sphere {
                 center: Vec3::new(0.0, -1000.0, 0.0),
                 radius: 1000.0,
-                material: Box::new(Checkerboard {
+                material: MaterialDesc::Checkerboard {
                     color_a: Vec3::new(0.0, 0.0, 0.0),
                     color_b: Vec3::new(1.0, 1.0, 1.0),
                     scale: 1.0,
-                }),
-            }),
+                },
+            },
         ];
         let kinds = vec![
             ObjectKind::Mesh,   // teapot
@@ -144,9 +143,9 @@ impl WasmRenderer {
             ObjectKind::Ground, // ground checkerboard
         ];
         WasmRenderer {
-            scene: objects,
+            objects,
             kinds,
-            sky_index: 0,
+            sky: (SKY_TABLE[0].build)(),
             hdr_sky: None,
         }
     }
@@ -164,7 +163,7 @@ impl WasmRenderer {
 
     pub fn set_sky(&mut self, index: u32) {
         if (index as usize) < SKY_TABLE.len() {
-            self.sky_index = index as usize;
+            self.sky = (SKY_TABLE[index as usize].build)();
             self.hdr_sky = None;
         }
     }
@@ -173,11 +172,16 @@ impl WasmRenderer {
         self.hdr_sky = Some(Arc::new(HDRSky::from_hdr_bytes(bytes)));
     }
 
-    fn build_sky(&self) -> Box<dyn Sky> {
+    fn build_sky_box(&self) -> Box<dyn Sky> {
         if let Some(ref hdr) = self.hdr_sky {
             return Box::new(ArcSky(Arc::clone(hdr)));
         }
-        (SKY_TABLE[self.sky_index].build)()
+        self.sky.build_sky()
+    }
+
+    fn build_world(&self, camera: Camera) -> World {
+        let objects: Vec<Arc<dyn Hittable>> = self.objects.iter().map(|o| o.build()).collect();
+        World::new(camera, objects, Some(self.build_sky_box()))
     }
 
     pub fn pick(
@@ -205,7 +209,7 @@ impl WasmRenderer {
             focus_distance,
             0.0,
         );
-        let world = World::new(camera, self.scene.clone(), Some(self.build_sky()));
+        let world = self.build_world(camera);
         match world.pick_index(pixel_x as usize, pixel_y as usize) {
             Some(i) if i < self.kinds.len() && self.kinds[i] != ObjectKind::Ground => i as i32,
             _ => -1,
@@ -235,7 +239,7 @@ impl WasmRenderer {
             1.0,
             0.0,
         );
-        let world = World::new(camera, self.scene.clone(), Some(self.build_sky()));
+        let world = self.build_world(camera);
         world
             .pick(pixel_x as usize, pixel_y as usize)
             .map(|h| h.t)
@@ -259,7 +263,7 @@ impl WasmRenderer {
         radius: u32,
     ) -> Vec<u8> {
         let idx = object_index as usize;
-        if idx >= self.scene.len() {
+        if idx >= self.objects.len() {
             return vec![];
         }
         let camera = Camera::look_at(
@@ -271,7 +275,7 @@ impl WasmRenderer {
             focus_distance,
             0.0,
         );
-        let mut world = World::new(camera, self.scene.clone(), Some(self.build_sky()));
+        let mut world = self.build_world(camera);
         let obj = world.scene_object(idx).cloned();
         match obj {
             Some(o) => world.outline(&o, radius as usize),
@@ -280,15 +284,14 @@ impl WasmRenderer {
     }
 
     pub fn object_count(&self) -> u32 {
-        self.scene.len() as u32
+        self.objects.len() as u32
     }
 
     pub fn get_object_info(&self, index: u32) -> Vec<f64> {
         let idx = index as usize;
-        if idx >= self.scene.len() {
+        if idx >= self.objects.len() {
             return vec![];
         }
-        let obj = &self.scene[idx];
         let kind = self.kinds[idx];
         let obj_type_f = match kind {
             ObjectKind::Sphere | ObjectKind::Ground => 0.0,
@@ -296,29 +299,47 @@ impl WasmRenderer {
             ObjectKind::Mesh => 2.0,
         };
 
-        if let Some(s) = obj.as_any().downcast_ref::<sphere::Sphere>() {
-            let (mt, albedo, fuzz, ri) = Self::read_material(&*s.material);
-            return vec![
-                obj_type_f, s.center.x, s.center.y, s.center.z, s.radius, mt as f64, albedo.x,
-                albedo.y, albedo.z, fuzz, ri,
-            ];
+        match &self.objects[idx] {
+            ObjectDesc::Sphere {
+                center,
+                radius,
+                material,
+            } => {
+                let (mt, albedo, fuzz, ri) = Self::read_material_desc(material);
+                vec![
+                    obj_type_f, center.x, center.y, center.z, *radius, mt, albedo.x, albedo.y,
+                    albedo.z, fuzz, ri,
+                ]
+            }
+            ObjectDesc::Mesh {
+                vertices, material, ..
+            } => {
+                let mut small = Vec3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
+                let mut big = Vec3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+                for v in vertices {
+                    small.x = small.x.min(v.x);
+                    small.y = small.y.min(v.y);
+                    small.z = small.z.min(v.z);
+                    big.x = big.x.max(v.x);
+                    big.y = big.y.max(v.y);
+                    big.z = big.z.max(v.z);
+                }
+                let cx = (small.x + big.x) * 0.5;
+                let cy = (small.y + big.y) * 0.5;
+                let cz = (small.z + big.z) * 0.5;
+                let size = (big.x - small.x).max(big.y - small.y).max(big.z - small.z);
+                let (mt, albedo, fuzz, ri) = Self::read_material_desc(material);
+                vec![
+                    obj_type_f, cx, cy, cz, size, mt, albedo.x, albedo.y, albedo.z, fuzz, ri,
+                ]
+            }
+            ObjectDesc::Plane { material, .. } => {
+                let (mt, albedo, fuzz, ri) = Self::read_material_desc(material);
+                vec![
+                    obj_type_f, 0.0, 0.0, 0.0, 0.0, mt, albedo.x, albedo.y, albedo.z, fuzz, ri,
+                ]
+            }
         }
-
-        if let Some(m) = obj.as_any().downcast_ref::<MeshBVH>() {
-            let bb = obj.bounding_box();
-            let cx = (bb.min.x + bb.max.x) * 0.5;
-            let cy = (bb.min.y + bb.max.y) * 0.5;
-            let cz = (bb.min.z + bb.max.z) * 0.5;
-            let size = (bb.max.x - bb.min.x)
-                .max(bb.max.y - bb.min.y)
-                .max(bb.max.z - bb.min.z);
-            let (mt, albedo, fuzz, ri) = Self::read_material(&*m.material);
-            return vec![
-                obj_type_f, cx, cy, cz, size, mt as f64, albedo.x, albedo.y, albedo.z, fuzz, ri,
-            ];
-        }
-
-        vec![]
     }
 
     pub fn add_sphere(
@@ -334,14 +355,13 @@ impl WasmRenderer {
         fuzz: f64,
         refractive_index: f64,
     ) -> u32 {
-        let mat = Self::make_material(mat_type, r, g, b, fuzz, refractive_index);
-        self.scene.push(Arc::new(sphere::Sphere {
+        self.objects.push(ObjectDesc::Sphere {
             center: Vec3::new(x, y, z),
             radius,
-            material: mat,
-        }));
+            material: Self::make_material_desc(mat_type, r, g, b, fuzz, refractive_index),
+        });
         self.kinds.push(ObjectKind::Sphere);
-        (self.scene.len() - 1) as u32
+        (self.objects.len() - 1) as u32
     }
 
     pub fn add_cube(
@@ -357,17 +377,20 @@ impl WasmRenderer {
         fuzz: f64,
         refractive_index: f64,
     ) -> u32 {
-        let mat = Self::make_material(mat_type, r, g, b, fuzz, refractive_index);
-        self.scene
-            .push(Arc::new(MeshBVH::build_cube(Vec3::new(x, y, z), size, mat)));
+        let (vertices, faces) = MeshBVH::cube_indexed(Vec3::new(x, y, z), size);
+        self.objects.push(ObjectDesc::Mesh {
+            vertices,
+            faces,
+            material: Self::make_material_desc(mat_type, r, g, b, fuzz, refractive_index),
+        });
         self.kinds.push(ObjectKind::Cube);
-        (self.scene.len() - 1) as u32
+        (self.objects.len() - 1) as u32
     }
 
     pub fn remove_object(&mut self, index: u32) {
         let idx = index as usize;
-        if idx < self.scene.len() {
-            self.scene.remove(idx);
+        if idx < self.objects.len() {
+            self.objects.remove(idx);
             self.kinds.remove(idx);
         }
     }
@@ -387,15 +410,14 @@ impl WasmRenderer {
         refractive_index: f64,
     ) {
         let idx = index as usize;
-        if idx >= self.scene.len() {
+        if idx >= self.objects.len() {
             return;
         }
-        let mat = Self::make_material(mat_type, r, g, b, fuzz, refractive_index);
-        self.scene[idx] = Arc::new(sphere::Sphere {
+        self.objects[idx] = ObjectDesc::Sphere {
             center: Vec3::new(x, y, z),
             radius,
-            material: mat,
-        });
+            material: Self::make_material_desc(mat_type, r, g, b, fuzz, refractive_index),
+        };
     }
 
     pub fn update_cube(
@@ -413,11 +435,15 @@ impl WasmRenderer {
         refractive_index: f64,
     ) {
         let idx = index as usize;
-        if idx >= self.scene.len() {
+        if idx >= self.objects.len() {
             return;
         }
-        let mat = Self::make_material(mat_type, r, g, b, fuzz, refractive_index);
-        self.scene[idx] = Arc::new(MeshBVH::build_cube(Vec3::new(x, y, z), size, mat));
+        let (vertices, faces) = MeshBVH::cube_indexed(Vec3::new(x, y, z), size);
+        self.objects[idx] = ObjectDesc::Mesh {
+            vertices,
+            faces,
+            material: Self::make_material_desc(mat_type, r, g, b, fuzz, refractive_index),
+        };
     }
 
     pub fn update_mesh_material(
@@ -431,13 +457,14 @@ impl WasmRenderer {
         refractive_index: f64,
     ) {
         let idx = index as usize;
-        if idx >= self.scene.len() {
+        if idx >= self.objects.len() {
             return;
         }
-        let any = self.scene[idx].as_any();
-        if let Some(mesh) = any.downcast_ref::<MeshBVH>() {
-            let mat = Self::make_material(mat_type, r, g, b, fuzz, refractive_index);
-            self.scene[idx] = Arc::new(mesh.with_material(mat));
+        if let ObjectDesc::Mesh {
+            ref mut material, ..
+        } = self.objects[idx]
+        {
+            *material = Self::make_material_desc(mat_type, r, g, b, fuzz, refractive_index);
         }
     }
 
@@ -466,7 +493,7 @@ impl WasmRenderer {
             focus_distance,
             aperture,
         );
-        let world = World::new(camera, self.scene.clone(), Some(self.build_sky()));
+        let world = self.build_world(camera);
         let mut renderer = Renderer::new(
             width as usize,
             height as usize,
@@ -479,48 +506,41 @@ impl WasmRenderer {
 }
 
 impl WasmRenderer {
-    fn read_material(mat: &dyn Material) -> (u32, Vec3, f64, f64) {
-        let any = mat.as_any();
-        if let Some(m) = any.downcast_ref::<Lambertian>() {
-            return (0, m.albedo, 0.0, 0.0);
+    fn read_material_desc(mat: &MaterialDesc) -> (f64, Vec3, f64, f64) {
+        match mat {
+            MaterialDesc::Lambertian { albedo } => (0.0, *albedo, 0.0, 0.0),
+            MaterialDesc::Metal { albedo, fuzz } => (1.0, *albedo, *fuzz, 0.0),
+            MaterialDesc::Dielectric {
+                albedo,
+                refractive_index,
+            } => (2.0, *albedo, 0.0, *refractive_index),
+            MaterialDesc::DiffuseLight { albedo } => (3.0, *albedo, 0.0, 0.0),
+            MaterialDesc::Checkerboard { color_b, .. } => (4.0, *color_b, 0.0, 0.0),
         }
-        if let Some(m) = any.downcast_ref::<Metal>() {
-            return (1, m.albedo, m.fuzz, 0.0);
-        }
-        if let Some(m) = any.downcast_ref::<Dielectric>() {
-            return (2, m.albedo, 0.0, m.refractive_index);
-        }
-        if let Some(m) = any.downcast_ref::<DiffuseLight>() {
-            return (3, m.albedo, 0.0, 0.0);
-        }
-        if let Some(m) = any.downcast_ref::<Checkerboard>() {
-            return (4, m.color_b, 0.0, 0.0);
-        }
-        (0, Vec3::new(0.5, 0.5, 0.5), 0.0, 0.0)
     }
 
-    fn make_material(
+    fn make_material_desc(
         mat_type: u32,
         r: f64,
         g: f64,
         b: f64,
         fuzz: f64,
         refractive_index: f64,
-    ) -> Box<dyn Material> {
+    ) -> MaterialDesc {
         let albedo = Vec3::new(r, g, b);
         match mat_type {
-            1 => Box::new(Metal { albedo, fuzz }),
-            2 => Box::new(Dielectric {
+            1 => MaterialDesc::Metal { albedo, fuzz },
+            2 => MaterialDesc::Dielectric {
                 albedo,
                 refractive_index,
-            }),
-            3 => Box::new(DiffuseLight { albedo }),
-            4 => Box::new(Checkerboard {
+            },
+            3 => MaterialDesc::DiffuseLight { albedo },
+            4 => MaterialDesc::Checkerboard {
                 color_a: Vec3::new(0.0, 0.0, 0.0),
                 color_b: albedo,
                 scale: 1.0,
-            }),
-            _ => Box::new(Lambertian { albedo }),
+            },
+            _ => MaterialDesc::Lambertian { albedo },
         }
     }
 }

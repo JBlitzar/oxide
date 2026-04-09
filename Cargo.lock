@@ -878,6 +878,7 @@ dependencies = [
  "bincode",
  "criterion",
  "fastrand",
+ "flate2",
  "image",
  "indicatif",
  "js-sys",

@@ -3,7 +3,11 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    camera::Camera, geometry::{self, Hittable, triangle::Triangle}, renderer::Renderer, vec3::Vec3, world::World,
+    camera::Camera,
+    geometry::{self, Hittable},
+    renderer::Renderer,
+    vec3::Vec3,
+    world::World,
 };
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MaterialDesc {
@@ -30,11 +34,32 @@ pub enum MaterialDesc {
 impl MaterialDesc {
     pub fn build(&self) -> Box<dyn crate::material::Material> {
         match self {
-            MaterialDesc::Lambertian { albedo } => Box::new(crate::material::Lambertian { albedo: *albedo }),
-            MaterialDesc::Metal { albedo, fuzz } => Box::new(crate::material::Metal { albedo: *albedo, fuzz: *fuzz }),
-            MaterialDesc::Dielectric { albedo, refractive_index } => Box::new(crate::material::Dielectric { albedo: *albedo, refractive_index: *refractive_index }),
-            MaterialDesc::DiffuseLight { albedo } => Box::new(crate::material::DiffuseLight { albedo: *albedo }),
-            MaterialDesc::Checkerboard { color_a, color_b, scale } => Box::new(crate::material::Checkerboard { color_a: *color_a, color_b: *color_b, scale: *scale }),
+            MaterialDesc::Lambertian { albedo } => {
+                Box::new(crate::material::Lambertian { albedo: *albedo })
+            }
+            MaterialDesc::Metal { albedo, fuzz } => Box::new(crate::material::Metal {
+                albedo: *albedo,
+                fuzz: *fuzz,
+            }),
+            MaterialDesc::Dielectric {
+                albedo,
+                refractive_index,
+            } => Box::new(crate::material::Dielectric {
+                albedo: *albedo,
+                refractive_index: *refractive_index,
+            }),
+            MaterialDesc::DiffuseLight { albedo } => {
+                Box::new(crate::material::DiffuseLight { albedo: *albedo })
+            }
+            MaterialDesc::Checkerboard {
+                color_a,
+                color_b,
+                scale,
+            } => Box::new(crate::material::Checkerboard {
+                color_a: *color_a,
+                color_b: *color_b,
+                scale: *scale,
+            }),
         }
     }
 }
@@ -47,7 +72,8 @@ pub enum ObjectDesc {
         material: MaterialDesc,
     },
     Mesh {
-        triangles: Vec<Triangle>,
+        vertices: Vec<Vec3>,
+        faces: Vec<[u32; 3]>,
         material: MaterialDesc,
     },
     Plane {
@@ -58,20 +84,71 @@ pub enum ObjectDesc {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub enum HdrSkyId {
+    CitrusOrchard,
+    QwantaniMoonrise,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub enum SkyDesc {
-    Gradient {
-        top: Vec3,
-        bottom: Vec3,
-    },
-    Solid {
-        color: Vec3,
-    },
-    HdrData {
-        pixels: Vec<Vec3>,
-        width: usize,
-        height: usize,
-        exposure: f64,
-    },
+    Gradient { top: Vec3, bottom: Vec3 },
+    Solid { color: Vec3 },
+    Hdr { id: HdrSkyId, exposure: f64 },
+}
+
+impl ObjectDesc {
+    pub fn build(&self) -> Arc<dyn Hittable> {
+        match self {
+            ObjectDesc::Sphere {
+                center,
+                radius,
+                material,
+            } => Arc::new(geometry::sphere::Sphere {
+                center: *center,
+                radius: *radius,
+                material: material.build(),
+            }) as Arc<dyn Hittable>,
+            ObjectDesc::Mesh {
+                vertices,
+                faces,
+                material,
+            } => Arc::new(geometry::mesh::MeshBVH::from_indexed(
+                vertices,
+                faces,
+                material.build(),
+            )) as Arc<dyn Hittable>,
+            ObjectDesc::Plane {
+                point,
+                normal,
+                material,
+            } => Arc::new(geometry::plane::Plane {
+                point: *point,
+                normal: *normal,
+                material: material.build(),
+            }) as Arc<dyn Hittable>,
+        }
+    }
+}
+
+impl SkyDesc {
+    pub fn build_sky(&self) -> Box<dyn crate::sky::Sky> {
+        match self {
+            SkyDesc::Gradient { top, bottom } => Box::new(crate::sky::GradientSky {
+                top_color: *top,
+                bottom_color: *bottom,
+            }),
+            SkyDesc::Solid { color } => Box::new(crate::sky::SolidColorSky { color: *color }),
+            SkyDesc::Hdr { id, exposure } => {
+                let path = match id {
+                    HdrSkyId::CitrusOrchard => "web/res/citrus_orchard_road_puresky_4k.hdr",
+                    HdrSkyId::QwantaniMoonrise => "web/res/qwantani_moonrise_puresky_4k.hdr",
+                };
+                let mut sky = crate::sky::HDRSky::from_hdr_file(path);
+                sky.exposure = *exposure;
+                Box::new(sky)
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -85,60 +162,8 @@ pub struct SceneDescription {
 
 impl SceneDescription {
     pub fn build(&self) -> (World, Renderer) {
-        let objects = self
-            .objects
-            .iter()
-            .map(|obj_desc| match obj_desc {
-                ObjectDesc::Sphere {
-                    center,
-                    radius,
-                    material,
-                } => Arc::new(geometry::sphere::Sphere {
-                    center: *center,
-                    radius: *radius,
-                    material: material.build(),
-                }) as Arc<dyn Hittable>,
-                ObjectDesc::Mesh {
-                    triangles,
-                    material,
-                } => Arc::new(geometry::mesh::MeshBVH::new(
-                    triangles.clone(),
-                    material.build(),
-                )) as Arc<dyn Hittable>,
-                ObjectDesc::Plane {
-                    point,
-                    normal,
-                    material,
-                } => Arc::new(geometry::plane::Plane {
-                    point: *point,
-                    normal: *normal,
-                    material: material.build(),
-                }) as Arc<dyn Hittable>,
-            })
-            .collect();
-
-        let sky = match &self.sky {
-            SkyDesc::Gradient { top, bottom } => Box::new(crate::sky::GradientSky {
-                top_color: *top,
-                bottom_color: *bottom,
-            }) as Box<dyn crate::sky::Sky>,
-            SkyDesc::Solid { color } => {
-                Box::new(crate::sky::SolidColorSky { color: *color }) as Box<dyn crate::sky::Sky>
-            }
-            SkyDesc::HdrData {
-                pixels,
-                width,
-                height,
-                exposure,
-            } => Box::new(crate::sky::HDRSky {
-                data: pixels.clone(),
-                width: *width,
-                height: *height,
-                exposure: *exposure,
-            }) as Box<dyn crate::sky::Sky>,
-        };
-
-        let world = World::new(self.camera.clone(), objects, Some(sky));
+        let objects = self.objects.iter().map(|o| o.build()).collect();
+        let world = World::new(self.camera.clone(), objects, Some(self.sky.build_sky()));
         let renderer = Renderer::new(
             self.camera.width_px,
             self.camera.height_px,
@@ -148,19 +173,40 @@ impl SceneDescription {
         (world, renderer)
     }
 
-    fn save(&self, path: &str) {
-        let bytes = bincode::serialize(self).expect("Failed to serialize scene");
-        std::fs::write(path, bytes).expect("Failed to write scene file");
-    }
-    fn load(path: &str) -> Self {
-        let bytes = std::fs::read(path).expect("Failed to read scene file");
-        bincode::deserialize(&bytes).expect("Failed to deserialize scene")
+    pub fn save(&self, path: &str) {
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+        use std::io::BufWriter;
+
+        let file = std::fs::File::create(path).expect("Failed to create scene file");
+        let buf = BufWriter::new(file);
+        let encoder = GzEncoder::new(buf, Compression::best());
+        bincode::serialize_into(encoder, self).expect("Failed to serialize scene");
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
-        bincode::serialize(self).expect("Failed to serialize scene")
+    pub fn load(path: &str) -> Self {
+        use flate2::read::GzDecoder;
+        use std::io::BufReader;
+
+        let file = std::fs::File::open(path).expect("Failed to read scene file");
+        let buf = BufReader::new(file);
+        let decoder = GzDecoder::new(buf);
+        bincode::deserialize_from(decoder).expect("Failed to deserialize scene")
     }
-    fn from_bytes(bytes: &[u8]) -> Self {
-        bincode::deserialize(bytes).expect("Failed to deserialize scene")
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+        bincode::serialize_into(&mut encoder, self).expect("Failed to serialize scene");
+        encoder.finish().expect("Failed to finish gzip")
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        use flate2::read::GzDecoder;
+
+        let decoder = GzDecoder::new(bytes);
+        bincode::deserialize_from(decoder).expect("Failed to deserialize scene")
     }
 }
