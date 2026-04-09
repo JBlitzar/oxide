@@ -9,3 +9,4 @@ principled bdsf
 subsurface scattering
 Serious editor capabilities (json/binary serde instead of replaying events, "send to local" button)
 fix up browser compat fr
+the great wgpu rewrite
