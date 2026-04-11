@@ -71,6 +71,7 @@ const PASSES = [
   [1.0, 16, 0.05],
   [1.0, 100, 0.01],
   [1.0, 500, 0.01],
+  [1.0, 1_000, 0.01],
 ];
 
 let mainRenderer = null;
@@ -275,9 +276,9 @@ function renderPreview() {
 
   // if dt above 25ms budget, then decrease preview scale for next time
   if (dt > 25) {
-    PREVIEW_SCALE = Math.max(0.05, PREVIEW_SCALE * 0.9);
+    PREVIEW_SCALE = Math.max(0.05, PREVIEW_SCALE * Math.sqrt(22 / dt));
   } else if (dt < 20) {
-    PREVIEW_SCALE = Math.min(0.25, PREVIEW_SCALE * 1.1);
+    PREVIEW_SCALE = Math.min(0.25, PREVIEW_SCALE * Math.sqrt(22 / dt));
   }
 
   displayFrame(rgba.buffer, w, h, `${w}x${h} | ${dt.toFixed(0)}ms | preview`);
@@ -347,8 +348,13 @@ function onWorkerMessage(e) {
     msg.height,
     `${msg.width}x${msg.height} | ${msg.dt.toFixed(0)}ms | pass ${msg.pass + 1}/${PASSES.length}`,
   );
-  currentPass = (msg.pass + 1) % PASSES.length;
-  if (!isDragging) sendRender();
+  if (msg.pass + 1 >= PASSES.length) {
+    // Final pass completed, warm up the spare worker for next time.
+    warmSpare();
+  } else {
+    currentPass = (msg.pass + 1) % PASSES.length;
+    if (!isDragging) sendRender();
+  }
 }
 
 function sendWorkerMessage(msg) {
