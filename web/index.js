@@ -60,7 +60,7 @@ const FOCUS_DISTANCE = 10.0;
 const APERTURE = 0.04;
 let focusDistance = FOCUS_DISTANCE;
 
-const PREVIEW_SCALE = 0.125;
+let PREVIEW_SCALE = 0.125;
 const OUTLINE_SCALE = 0.125;
 const MAX_RENDER_W = 1920;
 const MAX_RENDER_H = 1080;
