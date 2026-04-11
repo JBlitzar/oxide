@@ -595,6 +595,7 @@ impl WasmRenderer {
             Some(samples as usize),
             Some(termination_prob),
         );
+        renderer.set_adaptive(true);
         renderer.render(&world);
         renderer.take_buffer_rgba()
     }
