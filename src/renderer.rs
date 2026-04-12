@@ -27,6 +27,7 @@ pub struct Renderer {
     width: usize,
     height: usize,
     samples: usize,
+    adaptive: bool,
     sample_chunk_size: usize,
     max_tolerance: f64,
     termination_prob: f64,
@@ -44,10 +45,15 @@ impl Renderer {
             width,
             height,
             samples: samples.unwrap_or(20),
+            adaptive: false,
             sample_chunk_size: 32,
             max_tolerance: 0.05,
             termination_prob: termination_prob.unwrap_or(0.01),
         }
+    }
+
+    pub fn set_adaptive(&mut self, enabled: bool) {
+        self.adaptive = enabled;
     }
 
     pub fn render(&mut self, world: &World) {
@@ -138,7 +144,7 @@ impl Renderer {
             }
 
             let used = i + 1;
-            if self.sample_chunk_size > 0 && used % self.sample_chunk_size == 0 && n_valid > 1 {
+            if self.adaptive && self.sample_chunk_size > 0 && used % self.sample_chunk_size == 0 && n_valid > 1 {
                 let n = n_valid as f64;
                 let mu = s1 / n;
                 let sigma_squared = (s2 - (s1 * s1) / n) / (n - 1.0);
